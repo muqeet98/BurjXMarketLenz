@@ -15,7 +15,7 @@ import CoinList from '../components/CoinList';
 import { TabType, Coin } from '../types';
 // import Icon from 'react-native-vector-icons/Ionicons';
 
-const tabs: TabType[] = ['All Coins','Featured', 'Top Gainers', 'Top Losers'];
+const tabs: TabType[] = ['Featured', 'Top Gainers', 'Top Losers'];
 
 const HomeScreen: React.FC = () => {
     const { theme, isDarkMode, toggleTheme } = useTheme();

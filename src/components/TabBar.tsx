@@ -1,8 +1,10 @@
 // src/components/TabBar.tsx
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView ,Image} from 'react-native';
 import { TabType } from '../types';
 import { useTheme } from '../hooks/useTheme';
+import { wp } from '../utils/Responsiveness';
+import { iconPath } from '../constants/Icons';
 
 interface TabBarProps {
   tabs: TabType[];
@@ -28,15 +30,16 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, activeTab, onTabChange }) => {
               key={tab}
               style={[
                 styles.tab,
-                isActive && [styles.activeTab, { borderBottomColor: theme.accent }]
+                isActive && [styles.activeTab, { borderBottomColor: theme.BurjXGreen }]
               ]}
               onPress={() => onTabChange(tab)}
               activeOpacity={0.7}
             >
+              <Image source={ tab == 'Featured'? iconPath?.starIcon : tab=='Top Gainers'? iconPath?.Rocket: iconPath.RedFlag} style={{width:20, height:20}}/>
               <Text
                 style={[
                   styles.tabText,
-                  { color: isActive ? theme.accent : theme.secondaryText }
+                  { color: isActive ? theme.BurjXGreen : theme.secondaryText }
                 ]}
               >
                 {tab}
@@ -58,8 +61,9 @@ const styles = StyleSheet.create({
   },
   tab: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 26,
     marginRight: 16,
+    flexDirection:'row'
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -67,6 +71,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
     fontWeight: '500',
+    marginLeft: 8,
   },
 });
 

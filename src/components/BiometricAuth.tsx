@@ -94,7 +94,7 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
           style={styles.skipButton}
           onPress={skipAuthentication}
         >
-          <Text style={[styles.skipButtonText, { color: theme.blackblack }]}>
+          <Text style={[styles.skipButtonText, { color: theme.text , textAlign:'center'}]}>
             Skip for now
           </Text>
         </TouchableOpacity>
