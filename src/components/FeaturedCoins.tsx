@@ -21,7 +21,7 @@ const FeaturedCoins: React.FC<FeaturedCoinsProps> = ({ onCoinPress }) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={theme.accent} />
+        <ActivityIndicator color={theme.BurjXGreen} />
       </View>
     );
   }
@@ -42,7 +42,7 @@ const FeaturedCoins: React.FC<FeaturedCoinsProps> = ({ onCoinPress }) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {data.data.map((coin) => (
+        {/* {data.data.map((coin) => (
           <View key={coin.id} style={styles.cardWrapper}>
             <CoinCard 
               coin={coin}
@@ -50,7 +50,7 @@ const FeaturedCoins: React.FC<FeaturedCoinsProps> = ({ onCoinPress }) => {
               showDetailsChart={false}
             />
           </View>
-        ))}
+        ))} */}
       </ScrollView>
     </View>
   );

@@ -13,6 +13,7 @@ import { useTheme } from '../hooks/useTheme';
 import TabBar from '../components/TabBar';
 import CoinList from '../components/CoinList';
 import { TabType, Coin } from '../types';
+import CoinListFile from '../components/CoinListFile';
 // import Icon from 'react-native-vector-icons/Ionicons';
 
 const tabs: TabType[] = ['Featured', 'Top Gainers', 'Top Losers'];
@@ -66,10 +67,11 @@ const HomeScreen: React.FC = () => {
                 />
 
                 <View style={styles.content}>
-                    <CoinList
+                    {/* <CoinList
                         tabType={activeTab}
                         onCoinPress={handleCoinPress}
-                    />
+                    /> */}
+                   <CoinListFile/> 
                 </View>
             </SafeAreaView>
         </>

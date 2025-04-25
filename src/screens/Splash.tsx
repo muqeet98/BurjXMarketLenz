@@ -1,15 +1,12 @@
 
 import React, { use, useEffect, useRef } from 'react'
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { wp, hp } from '../utils/Responsiveness'
 import { useTheme } from '../hooks/useTheme'
 
 import Animated, {
-    Easing,
     useAnimatedStyle,
     useSharedValue,
-    withRepeat,
-    withTiming,
     withSpring,
 } from 'react-native-reanimated'
 import { BurjXLogoSVG } from '../constants/svgs'
@@ -28,7 +25,6 @@ const SplashScreen = () => {
         })
     }, [])
 
-
     useEffect(() => {
         setTimeout(async () => {
             navigation.replace('Auth')
@@ -38,9 +34,8 @@ const SplashScreen = () => {
 
     return (
         <View style={{ flex: 1, backgroundColor: theme.background }}>
-
             <Animated.View style={[styles.logoContainer, animatedStyles]}>
-                <BurjXLogoSVG />
+                {/* <BurjXLogoSVG /> */}
             </Animated.View>
         </View>
     )

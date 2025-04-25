@@ -76,19 +76,19 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Use Biometric {'\n'}to log in?</Text>
+      {/* <Text style={[styles.title, { color: theme.text }]}>Use Biometric {'\n'}to log in?</Text>
 
       <View>
         <Image style={{ width: 286, height: 286, alignSelf: 'center' }} source={iconPath?.FaceLock} />
-      </View>
+      </View> */}
 
       <View>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.BurjXGreen }]}
           onPress={handleAuthentication}
         >
           <Text style={styles.buttonText}>SetUp</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={styles.skipButton}
@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 15,
     // paddingHorizontal: 40,
-    borderRadius: 8,
     marginBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
