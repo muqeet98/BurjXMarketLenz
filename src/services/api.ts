@@ -1,6 +1,6 @@
 // src/services/api.ts
 import { Coin, OHLC, ApiResponse } from '../types';
-
+import axios from 'axios';
 const BASE_URL = 'https://coingeko.burjx.com';
 
 export const fetchCoins = async (
@@ -95,4 +95,24 @@ export const fetchTopLosers = async (
   }
   
   return response;
+};
+
+
+
+
+interface FetchCoinsParams {
+  pageParam?: number;
+  currency: string;
+}
+
+export const fetchCoinsApi = async ({ pageParam = 1, currency = 'usd' }) => {
+  const response = await axios.get('https://coingeko.burjx.com/coin-prices-all', {
+    params: {
+      currency,
+      page: pageParam,
+      pageSize: 15,
+    },
+  });
+
+  return response.data;
 };
