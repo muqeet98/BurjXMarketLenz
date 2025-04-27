@@ -18,9 +18,10 @@ import { SearchCVG, SparklineGreen, SparklineRed } from '../../../constants/svgs
 import ResponsiveText from '../../../components/common/ResponsiveText';
 import { fonts } from '../../../constants/Fonts';
 import { FlashList } from "@shopify/flash-list";
+import { useNavigation } from '@react-navigation/native';
 
 
-const ITEM_HEIGHT = wp(20) + 40; 
+const ITEM_HEIGHT = wp(20) + 40;
 const INITIAL_RENDER_COUNT = 5;
 const END_REACHED_THRESHOLD = 0.2;
 
@@ -66,9 +67,9 @@ interface Coin {
     name: string;
 }
 
-const CoinCard = React.memo(({ item, theme }: { item: Coin; theme: any }) => {
+const CoinCard = React.memo(({ item, theme,navigate }: { item: Coin; theme: any ,navigate:any}) => {
     return (
-        <View style={styles.card}>
+        <TouchableOpacity onPress={()=>navigate(item)} style={styles.card}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
                     <View style={styles.iconCircle}>
@@ -110,7 +111,7 @@ const CoinCard = React.memo(({ item, theme }: { item: Coin; theme: any }) => {
                     {item?.priceChangePercentage24h >= 0 ? <SparklineGreen /> : <SparklineRed />}
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 });
 
@@ -181,6 +182,7 @@ const ListFooter = React.memo(({ isFetchingNextPage, theme }: { isFetchingNextPa
 
 export default function CoinList() {
     const { theme } = useTheme();
+    const navigation=useNavigation()
     const currency = 'usd';
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
@@ -192,7 +194,6 @@ export default function CoinList() {
     const flashListRef = React.useRef(null);
     const loadingMoreRef = React.useRef(false);
 
-    // Handle scroll events for better performance
     const handleScrollBegin = useCallback(() => {
         setIsScrolling(true);
     }, []);
@@ -204,7 +205,6 @@ export default function CoinList() {
         }, 500);
     }, []);
 
-    // Debounce search query for better performance
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearchQuery(searchQuery);
@@ -232,28 +232,22 @@ export default function CoinList() {
         initialPageParam: 1,
         retry: 2,
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
-        staleTime: 30000, // Reuse cached data for 30 seconds
+        staleTime: 30000, 
     });
 
-    // A reliable custom scroll handler for pagination
     const handleScroll = useCallback(event => {
         if (!paginationEnabled || isFetchingNextPage || loadingMoreRef.current) return;
-        
+
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-        
-        // Track direction and only paginate when scrolling down
+
         const isScrollingDown = contentOffset.y > lastContentOffsetY.current;
         lastContentOffsetY.current = contentOffset.y;
-        
-        // Only fetch more if:
-        // 1. We're scrolling down
-        // 2. We're close to the bottom (within 20% of screen height)
-        // 3. Content has grown since last check (not an issue with content container)
-        // 4. Not currently fetching
+
+
         if (
-            isScrollingDown && 
-            distanceFromBottom < layoutMeasurement.height * 0.2 && 
+            isScrollingDown &&
+            distanceFromBottom < layoutMeasurement.height * 0.2 &&
             contentSize.height > lastContentHeight.current &&
             hasNextPage &&
             !loadingMoreRef.current
@@ -322,18 +316,15 @@ export default function CoinList() {
         refetch();
     }, [queryClient, refetch, currency]);
 
-    // Manual pagination handler as a backup
     const handleLoadMore = useCallback(() => {
         if (hasNextPage && !isFetchingNextPage && !loadingMoreRef.current && paginationEnabled) {
             loadingMoreRef.current = true;
             console.log('Fetching next page from manual handler');
             fetchNextPage().finally(() => {
-                // Reset if we're at the end
                 if (!hasNextPage) {
                     setPaginationEnabled(false);
                 }
-                
-                // Allow more fetches after a delay
+
                 setTimeout(() => {
                     loadingMoreRef.current = false;
                 }, 1000);
@@ -354,11 +345,15 @@ export default function CoinList() {
 
     const keyExtractor = useCallback((item: Coin) =>
         item.id?.toString() || Math.random().toString()
-    , []);
+        , []);
 
     const renderItem = useCallback(({ item }: { item: Coin }) => (
-        <CoinCard item={item} theme={theme} />
+        <CoinCard item={item} theme={theme} navigate={navigate}/>
     ), [theme]);
+
+    const navigate=(item: any)=>{
+        navigation.navigate('CoinDetail', { coin: item });
+    }
 
     if (isLoading) {
         return (
@@ -398,12 +393,12 @@ export default function CoinList() {
                 onMomentumScrollBegin={handleScrollBegin}
                 onMomentumScrollEnd={handleScrollEnd}
                 onScroll={handleScroll}
-                scrollEventThrottle={16} 
-                onEndReached={handleLoadMore} 
-                onEndReachedThreshold={0.1} 
+                scrollEventThrottle={16}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.1}
                 extraData={[coins.length, isFetchingNextPage, paginationEnabled]}
                 ListHeaderComponent={
-                    <ListHeader 
+                    <ListHeader
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
                         theme={theme}
@@ -415,12 +410,11 @@ export default function CoinList() {
                     <>
                         <ListFooter isFetchingNextPage={isFetchingNextPage} theme={theme} />
                         {coins.length > 0 && !isFetchingNextPage && hasNextPage && (
-                            <TouchableOpacity 
-                                onPress={handleLoadMore} 
+                            <TouchableOpacity
+                                onPress={handleLoadMore}
                                 style={styles.loadMoreButton}
                                 disabled={isFetchingNextPage || !paginationEnabled}
                             >
-                                <Text style={styles.loadMoreText}>Load More</Text>
                             </TouchableOpacity>
                         )}
                     </>
@@ -433,10 +427,10 @@ export default function CoinList() {
                         onRefresh={handleRefresh}
                     />
                 }
-                drawDistance={ITEM_HEIGHT * 5} // Reduced for better performance
-                contentContainerStyle={{ 
-                    paddingBottom: wp(20), // More padding at bottom
-                    minHeight: '100%', // Important for short lists
+                drawDistance={ITEM_HEIGHT * 5} 
+                contentContainerStyle={{
+                    paddingBottom: wp(20), 
+                    minHeight: '100%', 
                 }}
             />
         </View>

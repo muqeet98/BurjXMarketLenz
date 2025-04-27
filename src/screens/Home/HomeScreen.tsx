@@ -10,6 +10,7 @@ import {
     TextInput
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import TabBar from '../../components/TabBar';
 import { TabType, Coin } from '../../types';
 import CoinList from './CoinsList';
 import { CryptoTabs } from './CategoryTabs';
@@ -18,12 +19,6 @@ const tabs: TabType[] = ['Featured', 'Top Gainers', 'Top Losers'];
 
 const HomeScreen: React.FC = () => {
     const { theme, isDarkMode, toggleTheme } = useTheme();
-    const [activeTab, setActiveTab] = useState<TabType>('Featured');
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const handleCoinPress = (coin: Coin) => {
-        console.log('Coin pressed:', coin.name);
-    };
 
     return (
         <>
@@ -32,6 +27,7 @@ const HomeScreen: React.FC = () => {
                 backgroundColor={theme.background}
             />
             <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+
                 <CryptoTabs />
                 <View style={styles.content}>
                     <CoinList />

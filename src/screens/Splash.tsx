@@ -34,9 +34,9 @@ const SplashScreen = () => {
 
     return (
         <View style={{ flex: 1, backgroundColor: theme.background }}>
-            <Animated.View style={[styles.logoContainer, animatedStyles]}>
+            <View style={[styles.logoContainer]}>
                 <BurjXLogoSVG />
-            </Animated.View>
+            </View>
         </View>
     )
 }

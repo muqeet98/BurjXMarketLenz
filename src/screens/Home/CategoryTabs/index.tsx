@@ -1,40 +1,41 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
   TouchableOpacity, 
   StyleSheet, 
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView,
+  Image
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchCryptoData } from '../../../store/slices/coinsSlice';
 import { CryptoCard } from './CryptoCard';
+import { useTheme } from '../../../hooks/useTheme';
+import ResponsiveText from '../../../components/common/ResponsiveText';
+import { wp } from '../../../utils/Responsiveness';
+import { iconPath } from '../../../constants/Icons';
+import { useNavigation } from '@react-navigation/native';
 
 const TABS = [
-  { icon: '⭐', name: 'Featured', category: 'featured' },
-  { icon: '📈', name: 'Top Gainers', category: 'topGainers' },
-  { icon: '📉', name: 'Top Losers', category: 'topLosers' }
+  { icon: iconPath?.starIcon, name: 'Featured', category: 'featured' },
+  { icon: iconPath?.Rocket, name: 'Top Gainers', category: 'topGainers' },
+  { icon: iconPath?.RedFlag, name: 'Top Losers', category: 'topLosers' },
+  // Add more tabs if needed
 ];
-
-const TAB_DESCRIPTIONS = {
-  featured: 'Top 20 cryptocurrencies by market cap',
-  topGainers: 'Top 20 by 24-hour percentage gain',
-  topLosers: 'Top 20 by 24-hour percentage loss'
-};
 
 export const CryptoTabs = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const dispatch = useDispatch();
+  const theme = useTheme();
+  const navigation = useNavigation();
   
   const { featured, topGainers, topLosers, status, lastFetched } = useSelector(state => state.coins);
   
-  // Get the active category based on the tab index
-  const activeCategory = TABS[activeTabIndex].category;
-  console.log("featuredfeatured",featured);
+  const activeCategory = useMemo(() => TABS[activeTabIndex].category, [activeTabIndex]);
   
-  // Get the coins for the current tab - no sorting needed, already done in the reducer
-  const getCoinsForActiveTab = () => {
+  const coinsForActiveTab = useMemo(() => {
     switch (activeCategory) {
       case 'featured':
         return featured;
@@ -45,14 +46,14 @@ export const CryptoTabs = () => {
       default:
         return featured;
     }
-  };
+  }, [activeCategory, featured, topGainers, topLosers]);
   
   // Initial data fetch
   useEffect(() => {
     const shouldFetch = 
       status === 'idle' || 
       !lastFetched || 
-      (Date.now() - lastFetched > 60000); // Refetch if data is older than 1 minute
+      (Date.now() - lastFetched > 60000); 
       
     if (shouldFetch) {
       dispatch(fetchCryptoData());
@@ -60,84 +61,92 @@ export const CryptoTabs = () => {
     
     // Set up auto-refresh every minute
     const intervalId = setInterval(() => {
-    //   dispatch(fetchCryptoData());
-    }, 60000);
+      dispatch(fetchCryptoData());
+    }, 10000);
     
     return () => clearInterval(intervalId);
   }, [dispatch, status, lastFetched]);
   
-  // Tab change handler
   const handleTabChange = useCallback((index) => {
     setActiveTabIndex(index);
   }, []);
   
-  // Render item callback - uses memoized CryptoCard component
   const renderCryptoItem = useCallback(({ item }) => (
-    <CryptoCard coin={item} />
-  ), []);
+    <CryptoCard coin={item} navigate={navigate}/>
+  ), [theme]);
+
+  const navigate=(item)=>{
+    navigation.navigate('CoinDetail', { coin: item});
+  }
   
-  // Unique key for list items
   const keyExtractor = useCallback((item) => item.id, []);
   
-  return (
-    <View style={styles.container}>
-      {/* Tab Navigation */}
-      <View style={styles.tabBar}>
-        {TABS.map((tab, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.tabButton,
-              activeTabIndex === index && styles.activeTabButton
-            ]}
-            onPress={() => handleTabChange(index)}
+  const renderTabButton = useCallback((tab, index) => (
+    <TouchableOpacity
+      key={index}
+      style={[
+        styles.tabButton,
+        activeTabIndex === index && {borderBottomWidth: 2, borderColor: '#CDFF00'},
+      ]}
+      onPress={() => handleTabChange(index)}
+    >
+      <Image  source={tab.icon} style={{width:wp(6), height:wp(6)}}/>
+      <ResponsiveText margin={[0,0,0,5]} size={'h5'}>
+        {tab.name}
+      </ResponsiveText>
+    </TouchableOpacity>
+  ), [activeTabIndex, handleTabChange]);
+
+  const renderContent = useCallback(() => {
+    if (status === 'loading' && coinsForActiveTab.length === 0) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#CDFF00" />
+          <Text style={styles.loadingText}>Loading cryptocurrencies...</Text>
+        </View>
+      );
+    } 
+    
+    if (status === 'failed') {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to load data</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={() => dispatch(fetchCryptoData())}
           >
-            <Text style={styles.tabIcon}>{tab.icon}</Text>
-            <Text 
-              style={[
-                styles.tabText,
-                activeTabIndex === index && styles.activeTabText
-              ]}
-            >
-              {tab.name}
-            </Text>
+            <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-      
-      {/* Tab Description */}
-      <Text style={styles.tabDescription}>
-        {TAB_DESCRIPTIONS[activeCategory]}
-      </Text>
-      
-      {/* Coin List */}
+        </View>
+      );
+    }
+    
+    return (
+      <FlashList
+        data={coinsForActiveTab}
+        renderItem={renderCryptoItem}
+        keyExtractor={keyExtractor}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        estimatedItemSize={23}
+        contentContainerStyle={styles.listContent}
+      />
+    );
+  }, [status, coinsForActiveTab, renderCryptoItem, keyExtractor, dispatch]);
+  
+  return (
+    <View style={[styles.container, {backgroundColor: theme.background}]}>
+      {/* Scrollable Tab Bar */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.tabBarContainer}
+        style={styles.tabBar}
+      >
+        {TABS.map(renderTabButton)}
+      </ScrollView>
       <View style={styles.contentContainer}>
-        {status === 'loading' && getCoinsForActiveTab().length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3b82f6" />
-            <Text style={styles.loadingText}>Loading cryptocurrencies...</Text>
-          </View>
-        ) : status === 'failed' ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Failed to load data</Text>
-            <TouchableOpacity 
-              style={styles.retryButton} 
-              onPress={() => dispatch(fetchCryptoData())}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlashList
-            data={getCoinsForActiveTab()}
-            renderItem={renderCryptoItem}
-            keyExtractor={keyExtractor}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            estimatedItemSize={160}
-            contentContainerStyle={styles.listContent}
-          />
-        )}
+        {renderContent()}
       </View>
     </View>
   );
@@ -147,19 +156,19 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    width: '100%'
+    width: '100%',
+    marginBottom: 16,
   },
   tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#262626',
     marginBottom: 16,
+    flexGrow: 0,paddingLeft:wp(5)
+  },
+  tabBarContainer: {
+    flexDirection: 'row',
+    paddingRight: 16, // Add padding to ensure last tab is fully visible
   },
   tabButton: {
     flexDirection: 'row',
@@ -170,7 +179,7 @@ const styles = StyleSheet.create({
   },
   activeTabButton: {
     borderBottomWidth: 2,
-    borderBottomColor: '#3b82f6',
+  
   },
   tabIcon: {
     fontSize: 16,
@@ -184,23 +193,16 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#3b82f6',
   },
-  tabDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 12,
-    paddingLeft: 16,
-    fontStyle: 'italic',
-  },
   contentContainer: {
-    height: 160,
     justifyContent: 'center',
+    minHeight: 150, // Ensure content area has minimum height even when empty
   },
   listContent: {
     paddingLeft: 16,
     paddingRight: 32,
   },
   loadingContainer: {
-    flex: 1,
+    paddingVertical: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   errorContainer: {
-    flex: 1,
+    paddingVertical: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

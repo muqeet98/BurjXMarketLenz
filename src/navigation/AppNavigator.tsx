@@ -7,11 +7,14 @@ import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import { useTheme } from '../hooks/useTheme';
 import SplashScreen from '../screens/Splash';
+import CryptoPriceChart from '../screens/Home/CoinDetails/CryptoPriceChart';
+import BiometricAuth from '../screens/BiometricAuth';
 
 export type RootStackParamList = {
   Splash: undefined;
   Auth: undefined;
   Home: undefined;
+  CoinDetail:undefined
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,12 +46,17 @@ const AppNavigator = () => {
       />
       <Stack.Screen
         name="Auth"
-        component={AuthScreen}
+        component={BiometricAuth}
         options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Home"
         component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CoinDetail"
+        component={CryptoPriceChart}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

@@ -12,9 +12,8 @@ export const fetchCryptoData = createAsyncThunk(
       }
       
       const data = await response.json();
-      console.log("datadataewfdsfsdfsfe",data);
       
-      return data;
+      return data.data;
     } catch (error) {
       return rejectWithValue((error instanceof Error ? error.message : 'Unknown error occurred'));
     }
@@ -64,6 +63,7 @@ const coinsSlice = createSlice({
         state.status = 'succeeded';
         state.allCoins = action.payload;
         state.lastFetched = Date.now();
+        console.log("action.payload", action.payload);
         
         // Pre-process data for each tab
         state.featured = [...action.payload]

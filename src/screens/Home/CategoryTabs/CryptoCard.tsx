@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image, TouchableOpacity } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { SparklineGreen, SparklineRed } from '../../../constants/svgs';
+import ResponsiveText from '../../../components/common/ResponsiveText';
+import { fonts } from '../../../constants/Fonts';
+import { wp } from '../../../utils/Responsiveness';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = 160;
+const CARD_WIDTH = wp(46);
 
 type CryptoCardProps = {
   coin: {
@@ -15,50 +18,9 @@ type CryptoCardProps = {
   };
 };
 
-export const CryptoCard = React.memo(({ coin }: any) => {
+export const CryptoCard = React.memo(({ coin,navigate}: any) => {
   const isPositive = (coin.priceChangePercentage24h || 0) > 0;
-  const chartColor = isPositive ? '#b7f834' : '#ff4560';
-  
-  // Use sparkline data for chart if available, or generate placeholder data
-  const chartData = useMemo(() => {
-    if (coin.sparkline && coin.sparkline.length > 1) {
-      // Normalize the sparkline data to fit within our chart height
-      const min = Math.min(...coin.sparkline);
-      const max = Math.max(...coin.sparkline);
-      const range = max - min;
-      
-      // Map to values between 20 and 80 (for our chart height)
-      return coin.sparkline.map(value => {
-        if (range === 0) return 50; // Prevent division by zero
-        return 20 + ((value - min) / range) * 60;
-      });
-    } else {
-      // Fallback to generating random data if sparkline is not available
-      const points = [];
-      let currentValue = 50;
-      
-      for (let i = 0; i < 20; i++) {
-        const bias = isPositive ? 1 : -1;
-        const randomChange = (Math.random() * 8) - 3 + bias;
-        currentValue += randomChange;
-        currentValue = Math.max(20, Math.min(80, currentValue));
-        points.push(currentValue);
-      }
-      
-      return points;
-    }
-  }, [coin.sparkline, isPositive]);
-  
-  // Calculate chart path
-  const chartWidth = CARD_WIDTH - 32;
-  const chartHeight = 50;
-  const chartPath = chartData.map((point, index) => {
-    const x = (index / (chartData.length - 1)) * chartWidth;
-    const y = chartHeight - ((point / 100) * chartHeight);
-    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
-  
-  // Format price with appropriate commas and decimals
+
   const formatPrice = (price) => {
     if (price < 0.01) {
       return `$${price.toFixed(6)}`;
@@ -74,39 +36,41 @@ export const CryptoCard = React.memo(({ coin }: any) => {
       return `$${(price / 1000000).toFixed(2)}M`;
     }
   };
-  
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity activeOpacity={0.8} onPress={()=>navigate(coin)} style={[styles.card, { backgroundColor: '#1B1B1B' }]}>
       <View style={styles.cardHeader}>
-        <View 
+        <View
           style={[
-            styles.coinIcon, 
+            styles.coinIcon,
             { backgroundColor: coin.symbol.toLowerCase() === 'btc' ? '#f2a900' : '#F3BA2F' }
           ]}
         >
-          <Text style={styles.coinIconText}>
-            {coin.symbol.substring(0, 1).toUpperCase()}
-          </Text>
+          <Image
+            source={{ uri: coin?.image }}
+            style={{ width: wp(8), height: wp(8), borderRadius: wp(30) }}
+            resizeMode="contain"
+          />
         </View>
         <View style={styles.coinInfo}>
-          <Text style={styles.symbolText}>{coin.symbol.toUpperCase()}</Text>
-          <Text style={styles.nameText}>{coin.name}</Text>
+          <ResponsiveText size={'h5'}>
+            {coin?.symbol?.toUpperCase()}
+          </ResponsiveText>
+          <ResponsiveText fontFamily={fonts.LufgaLight} color={'#898989'} size={'h3'}>
+            {coin?.name}
+          </ResponsiveText>
         </View>
       </View>
-      
+
       <View style={styles.chartContainer}>
-        <Svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
-          <Path
-            d={chartPath}
-            fill="none"
-            stroke={chartColor}
-            strokeWidth="2"
-          />
-        </Svg>
+        {coin?.priceChangePercentage24h >= 0 ? <SparklineGreen /> : <SparklineRed />}
       </View>
-      
+
       <View style={styles.priceContainer}>
-        <Text style={styles.priceText}>{formatPrice(coin.currentPrice)}</Text>
+        {/* <Text style={styles.priceText}>{formatPrice(coin.currentPrice)}</Text> */}
+        <ResponsiveText size={'h45'}>
+          $ {coin.currentPrice?.toLocaleString()}
+        </ResponsiveText>
         <View style={[
           styles.changeContainer,
           isPositive ? styles.positiveChange : styles.negativeChange
@@ -116,7 +80,7 @@ export const CryptoCard = React.memo(({ coin }: any) => {
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 
@@ -126,12 +90,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     width: CARD_WIDTH,
-    marginRight: 12,
+    marginRight: 5,
+    borderWidth:0.3, 
+    borderColor: '#3F3F3F',
+    // marginBottom:5
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    minHeight: wp(20)
+    // marginBottom: 12,
   },
   coinIcon: {
     width: 32,
@@ -147,6 +115,7 @@ const styles = StyleSheet.create({
   },
   coinInfo: {
     marginLeft: 8,
+    width: '70%'
   },
   symbolText: {
     fontSize: 14,

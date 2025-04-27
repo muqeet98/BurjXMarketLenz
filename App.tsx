@@ -20,9 +20,6 @@ const queryClient = new QueryClient({
 
 const App = () => {
     return (
-        // <>
-        // </>
-
         <Provider store={store}>
             <ThemeProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>

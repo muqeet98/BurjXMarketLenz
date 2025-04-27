@@ -3,12 +3,13 @@ import { configureStore } from '@reduxjs/toolkit';
 import themeReducer from './slices/themeSlice';
 import authReducer from './slices/authSlice';
 import coinsReducer from './slices/coinsSlice';
-
+import cryptoReducer from './slices/cryptoSlice';
 export const store = configureStore({
   reducer: {
     theme: themeReducer,
     auth: authReducer,
-    coins: coinsReducer
+    coins: coinsReducer,
+    crypto: cryptoReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

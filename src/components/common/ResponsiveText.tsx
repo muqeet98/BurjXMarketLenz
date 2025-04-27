@@ -66,7 +66,7 @@ const styles = {
     h5: { fontSize: wp(5) },
     h6: { fontSize: wp(4) },
     h7: { fontSize: wp(3.5) },
-    h8: { fontSize: wp(2.5) },
+    h8: { fontSize: wp(8) },
     h9: { fontSize: wp(2) },
     h10: { fontSize: wp(10)},
     h11: { fontSize: wp(11) }, // 42/3.6
