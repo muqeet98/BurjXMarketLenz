@@ -150,14 +150,14 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
           <Text style={styles.buttonText}>{buttonText}</Text>
         </TouchableOpacity>
 
-        {!isBiometricsEnabled && (
+        {/* {!isBiometricsEnabled && (
           <TouchableOpacity
             style={[styles.skipButton]}
             onPress={skipAuthentication}
           >
             <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>Skip for now</Text>
           </TouchableOpacity>
-        )}
+        )} */}
       </View>
     </SafeAreaView>
   );
