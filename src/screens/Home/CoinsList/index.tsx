@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useTheme } from '../hooks/useTheme';
-import { wp } from '../utils/Responsiveness';
-import { SearchCVG, SparklineGreen, SparklineRed } from '../constants/svgs';
-import ResponsiveText from './common/ResponsiveText';
-import { fonts } from '../constants/Fonts';
+import { useTheme } from '../../../hooks/useTheme';
+import { wp } from '../../../utils/Responsiveness';
+import { SearchCVG, SparklineGreen, SparklineRed } from '../../../constants/svgs';
+import ResponsiveText from '../../../components/common/ResponsiveText';
+import { fonts } from '../../../constants/Fonts';
 import { FlashList } from "@shopify/flash-list";
 
 

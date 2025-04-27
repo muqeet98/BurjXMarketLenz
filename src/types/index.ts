@@ -30,3 +30,29 @@ export interface Coin {
     success: boolean;
     message?: string;
   }
+  
+
+  export interface Cryptocurrency {
+    productId: number;
+    id: string;
+    name: string;
+    image: string;
+    currentPrice: number;
+    priceChangePercentage24h: number;
+    sparkline: number[]; // Array of price points for creating the chart
+    marketCap: number;
+    tradingVolume: number;
+    symbol: string;
+  }
+  
+  export type CryptoCategory = 'featured' | 'topGainers' | 'topLosers';
+  
+  export interface CryptoState {
+    allCoins: Cryptocurrency[];
+    featured: Cryptocurrency[];
+    topGainers: Cryptocurrency[];
+    topLosers: Cryptocurrency[];
+    status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error: string | null;
+    lastFetched: number | null;
+  }

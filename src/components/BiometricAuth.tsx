@@ -7,6 +7,8 @@ import { setAuthenticated, setBiometricsEnabled } from '../store/slices/authSlic
 import { useTheme } from '../hooks/useTheme';
 import { iconPath } from '../constants/Icons';
 import { BurjXLogoSVG, FaceLocks } from '../constants/svgs';
+import { fonts } from '../constants/Fonts';
+import ResponsiveText from './common/ResponsiveText';
 
 const rnBiometrics = new ReactNativeBiometrics();
 
@@ -76,19 +78,22 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* <Text style={[styles.title, { color: theme.text }]}>Use Biometric {'\n'}to log in?</Text>
+      {/* <Text style={[styles.title, { color: theme.text, fontFamily:fonts.LufgaRegular}]}>Use Biometric {'\n'}to log in?</Text> */}
+      <ResponsiveText size={'h10'}>
+      Use Biometric {'\n'}to log in?
+      </ResponsiveText>
 
       <View>
         <Image style={{ width: 286, height: 286, alignSelf: 'center' }} source={iconPath?.FaceLock} />
-      </View> */}
+      </View>
 
       <View>
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.BurjXGreen }]}
           onPress={handleAuthentication}
         >
           <Text style={styles.buttonText}>SetUp</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.skipButton}

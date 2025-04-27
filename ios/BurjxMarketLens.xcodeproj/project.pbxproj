@@ -8,10 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		0C80B921A6F3F58F76C31292 /* libPods-BurjxMarketLens.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-BurjxMarketLens.a */; };
+		0E477B928D13456CA5531185 /* Lufga-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CD67D85DB61C41F2B53FC412 /* Lufga-Medium.ttf */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		31E8331609EB49A18626F857 /* Lufga-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D5207167F512495F97BD6F76 /* Lufga-Light.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		84D73AFF6DBB482FA16FECF1 /* Lufga-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 194096E625A94D868F713154 /* Lufga-Bold.ttf */; };
 		A45A788D6D7144613618A117 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		C3DE58D62DBC3DC2003139A9 /* Lufga-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C3DE58D22DBC3DC2003139A9 /* Lufga-Bold.ttf */; };
+		C3DE58D72DBC3DC2003139A9 /* Lufga-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C3DE58D42DBC3DC2003139A9 /* Lufga-Medium.ttf */; };
+		C3DE58D82DBC3DC2003139A9 /* Lufga-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C3DE58D52DBC3DC2003139A9 /* Lufga-Regular.ttf */; };
+		C3DE58D92DBC3DC2003139A9 /* Lufga-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C3DE58D32DBC3DC2003139A9 /* Lufga-Light.ttf */; };
+		F126CE8E36D4497FA98450BA /* Lufga-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80D8DF8CAA7041AABAE5F88B /* Lufga-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,11 +27,19 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = BurjxMarketLens/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = BurjxMarketLens/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = BurjxMarketLens/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		194096E625A94D868F713154 /* Lufga-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Lufga-Bold.ttf"; path = "../assets/fonts/Lufga-Bold.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-BurjxMarketLens.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BurjxMarketLens.debug.xcconfig"; path = "Target Support Files/Pods-BurjxMarketLens/Pods-BurjxMarketLens.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-BurjxMarketLens.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BurjxMarketLens.release.xcconfig"; path = "Target Support Files/Pods-BurjxMarketLens/Pods-BurjxMarketLens.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-BurjxMarketLens.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-BurjxMarketLens.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = BurjxMarketLens/AppDelegate.swift; sourceTree = "<group>"; };
+		80D8DF8CAA7041AABAE5F88B /* Lufga-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Lufga-Regular.ttf"; path = "../assets/fonts/Lufga-Regular.ttf"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = BurjxMarketLens/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		C3DE58D22DBC3DC2003139A9 /* Lufga-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Lufga-Bold.ttf"; sourceTree = "<group>"; };
+		C3DE58D32DBC3DC2003139A9 /* Lufga-Light.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Lufga-Light.ttf"; sourceTree = "<group>"; };
+		C3DE58D42DBC3DC2003139A9 /* Lufga-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Lufga-Medium.ttf"; sourceTree = "<group>"; };
+		C3DE58D52DBC3DC2003139A9 /* Lufga-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Lufga-Regular.ttf"; sourceTree = "<group>"; };
+		CD67D85DB61C41F2B53FC412 /* Lufga-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Lufga-Medium.ttf"; path = "../assets/fonts/Lufga-Medium.ttf"; sourceTree = "<group>"; };
+		D5207167F512495F97BD6F76 /* Lufga-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Lufga-Light.ttf"; path = "../assets/fonts/Lufga-Light.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -42,6 +58,10 @@
 		13B07FAE1A68108700A75B9A /* BurjxMarketLens */ = {
 			isa = PBXGroup;
 			children = (
+				C3DE58D22DBC3DC2003139A9 /* Lufga-Bold.ttf */,
+				C3DE58D32DBC3DC2003139A9 /* Lufga-Light.ttf */,
+				C3DE58D42DBC3DC2003139A9 /* Lufga-Medium.ttf */,
+				C3DE58D52DBC3DC2003139A9 /* Lufga-Regular.ttf */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -75,6 +95,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				94C5BC8B21AB47BFBFAB9629 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -87,6 +108,18 @@
 				13B07F961A680F5B00A75B9A /* BurjxMarketLens.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		94C5BC8B21AB47BFBFAB9629 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				194096E625A94D868F713154 /* Lufga-Bold.ttf */,
+				D5207167F512495F97BD6F76 /* Lufga-Light.ttf */,
+				CD67D85DB61C41F2B53FC412 /* Lufga-Medium.ttf */,
+				80D8DF8CAA7041AABAE5F88B /* Lufga-Regular.ttf */,
+			);
+			name = Resources;
+			path = "";
 			sourceTree = "<group>";
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
@@ -160,7 +193,15 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				C3DE58D62DBC3DC2003139A9 /* Lufga-Bold.ttf in Resources */,
+				C3DE58D72DBC3DC2003139A9 /* Lufga-Medium.ttf in Resources */,
+				C3DE58D82DBC3DC2003139A9 /* Lufga-Regular.ttf in Resources */,
+				C3DE58D92DBC3DC2003139A9 /* Lufga-Light.ttf in Resources */,
 				A45A788D6D7144613618A117 /* PrivacyInfo.xcprivacy in Resources */,
+				84D73AFF6DBB482FA16FECF1 /* Lufga-Bold.ttf in Resources */,
+				31E8331609EB49A18626F857 /* Lufga-Light.ttf in Resources */,
+				0E477B928D13456CA5531185 /* Lufga-Medium.ttf in Resources */,
+				F126CE8E36D4497FA98450BA /* Lufga-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

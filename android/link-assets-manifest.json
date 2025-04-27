@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Lufga-Bold.ttf",
+      "sha1": "a82d5592d14fd116c6e9d5f51dc66740e735c727"
+    },
+    {
+      "path": "assets/fonts/Lufga-Light.ttf",
+      "sha1": "ca085dd0755dd62497b07e358c56219468a5ebfa"
+    },
+    {
+      "path": "assets/fonts/Lufga-Medium.ttf",
+      "sha1": "b0bcb8b4847b97b53456e51657592a90ce0fe24c"
+    },
+    {
+      "path": "assets/fonts/Lufga-Regular.ttf",
+      "sha1": "e800469ea070f9647688d0a8c2c87edc119666c7"
+    }
+  ]
+}

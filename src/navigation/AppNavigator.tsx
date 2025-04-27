@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import AuthScreen from '../screens/AuthScreen';
-import HomeScreen from '../screens/HomeScreen';
+import HomeScreen from '../screens/Home/HomeScreen';
 import { useTheme } from '../hooks/useTheme';
 import SplashScreen from '../screens/Splash';
 
