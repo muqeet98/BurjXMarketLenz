@@ -1261,6 +1261,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-netinfo (11.4.1):
+    - React-Core
   - react-native-safe-area-context (5.4.0):
     - DoubleConversion
     - glog
@@ -1950,6 +1952,7 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-biometrics (from `../node_modules/react-native-biometrics`)
   - react-native-mmkv (from `../node_modules/react-native-mmkv`)
+  - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -2072,6 +2075,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-biometrics"
   react-native-mmkv:
     :path: "../node_modules/react-native-mmkv"
+  react-native-netinfo:
+    :path: "../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2187,6 +2192,7 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: 663bc64e3a96c5fc91081923ae7481adc1359a78
   react-native-biometrics: 352e5a794bfffc46a0c86725ea7dc62deb085bdc
   react-native-mmkv: 55e8a074ae9cb919609755d7271c16b242c2603f
+  react-native-netinfo: f0a9899081c185db1de5bb2fdc1c88c202a059ac
   react-native-safe-area-context: 9b169299f9dc95f1d7fe1dd266fde53bd899cd0c
   React-NativeModulesApple: 16fbd5b040ff6c492dacc361d49e63cba7a6a7a1
   React-perflogger: ab51b7592532a0ea45bf6eed7e6cae14a368b678
