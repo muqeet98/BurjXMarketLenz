@@ -67,9 +67,9 @@ interface Coin {
     name: string;
 }
 
-const CoinCard = React.memo(({ item, theme,navigate }: { item: Coin; theme: any ,navigate:any}) => {
+const CoinCard = React.memo(({ item, theme, navigate }: { item: Coin; theme: any, navigate: any }) => {
     return (
-        <TouchableOpacity onPress={()=>navigate(item)} style={styles.card}>
+        <TouchableOpacity onPress={() => navigate(item)} style={styles.card}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
                     <View style={styles.iconCircle}>
@@ -182,27 +182,26 @@ const ListFooter = React.memo(({ isFetchingNextPage, theme }: { isFetchingNextPa
 
 export default function CoinList() {
     const { theme } = useTheme();
-    const navigation=useNavigation()
+    const navigation = useNavigation();
     const currency = 'usd';
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [isScrolling, setIsScrolling] = useState(false);
-    const [paginationEnabled, setPaginationEnabled] = useState(true);
-    const lastContentHeight = React.useRef(0);
-    const lastContentOffsetY = React.useRef(0);
     const flashListRef = React.useRef(null);
     const loadingMoreRef = React.useRef(false);
 
+    // Simplified scroll handlers
     const handleScrollBegin = useCallback(() => {
         setIsScrolling(true);
     }, []);
 
     const handleScrollEnd = useCallback(() => {
+        setIsScrolling(false);
+        // Reset loading state with a slight delay to prevent immediate refetch
         setTimeout(() => {
-            setIsScrolling(false);
             loadingMoreRef.current = false;
-        }, 500);
+        }, 300);
     }, []);
 
     useEffect(() => {
@@ -235,34 +234,21 @@ export default function CoinList() {
         staleTime: 30000, 
     });
 
-    const handleScroll = useCallback(event => {
-        if (!paginationEnabled || isFetchingNextPage || loadingMoreRef.current) return;
-
-        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-        const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-
-        const isScrollingDown = contentOffset.y > lastContentOffsetY.current;
-        lastContentOffsetY.current = contentOffset.y;
-
-
-        if (
-            isScrollingDown &&
-            distanceFromBottom < layoutMeasurement.height * 0.2 &&
-            contentSize.height > lastContentHeight.current &&
-            hasNextPage &&
-            !loadingMoreRef.current
-        ) {
-            lastContentHeight.current = contentSize.height;
+    // Simplified load more handler - removed custom scroll logic
+    const handleLoadMore = useCallback(() => {
+        if (hasNextPage && !isFetchingNextPage && !loadingMoreRef.current) {
             loadingMoreRef.current = true;
-            console.log('Fetching next page from scroll handler');
-            fetchNextPage();
+            fetchNextPage().finally(() => {
+                // Reset the loading flag after some delay
+                setTimeout(() => {
+                    loadingMoreRef.current = false;
+                }, 500);
+            });
         }
-    }, [hasNextPage, isFetchingNextPage, paginationEnabled, fetchNextPage]);
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     useEffect(() => {
-        lastContentHeight.current = 0;
-        lastContentOffsetY.current = 0;
-        setPaginationEnabled(true);
+        // Reset scrolling state when search changes
         loadingMoreRef.current = false;
     }, [debouncedSearchQuery]);
 
@@ -295,7 +281,7 @@ export default function CoinList() {
                 };
             });
         } catch (error) {
-            // console.error('Polling Error:', error.message);
+            // Silent error handling for polling
         }
     }, [isFetching, isRefetching, queryClient, currency, isScrolling]);
 
@@ -309,28 +295,9 @@ export default function CoinList() {
             pages: oldData?.pages?.slice(0, 1) || [],
             pageParams: [1],
         }));
-        lastContentHeight.current = 0;
-        lastContentOffsetY.current = 0;
         loadingMoreRef.current = false;
-        setPaginationEnabled(true);
         refetch();
     }, [queryClient, refetch, currency]);
-
-    const handleLoadMore = useCallback(() => {
-        if (hasNextPage && !isFetchingNextPage && !loadingMoreRef.current && paginationEnabled) {
-            loadingMoreRef.current = true;
-            console.log('Fetching next page from manual handler');
-            fetchNextPage().finally(() => {
-                if (!hasNextPage) {
-                    setPaginationEnabled(false);
-                }
-
-                setTimeout(() => {
-                    loadingMoreRef.current = false;
-                }, 1000);
-            });
-        }
-    }, [hasNextPage, isFetchingNextPage, paginationEnabled, fetchNextPage]);
 
     const coins = useMemo(() => {
         const allCoins: Coin[] = data?.pages?.flat() ?? [];
@@ -345,15 +312,15 @@ export default function CoinList() {
 
     const keyExtractor = useCallback((item: Coin) =>
         item.id?.toString() || Math.random().toString()
-        , []);
+    , []);
 
     const renderItem = useCallback(({ item }: { item: Coin }) => (
         <CoinCard item={item} theme={theme} navigate={navigate}/>
     ), [theme]);
 
-    const navigate=(item: any)=>{
+    const navigate = (item: any) => {
         navigation.navigate('CoinDetail', { coin: item });
-    }
+    };
 
     if (isLoading) {
         return (
@@ -388,15 +355,17 @@ export default function CoinList() {
                 renderItem={renderItem}
                 estimatedItemSize={ITEM_HEIGHT}
                 initialNumToRender={INITIAL_RENDER_COUNT}
-                onScrollBeginDrag={handleScrollBegin}
-                onScrollEndDrag={handleScrollEnd}
+                maintainVisibleContentPosition={{ // Add this to maintain position during updates
+                    minIndexForVisible: 0
+                }}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={END_REACHED_THRESHOLD}
                 onMomentumScrollBegin={handleScrollBegin}
                 onMomentumScrollEnd={handleScrollEnd}
-                onScroll={handleScroll}
+                onScrollBeginDrag={handleScrollBegin} 
+                onScrollEndDrag={handleScrollEnd}
                 scrollEventThrottle={16}
-                onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.1}
-                extraData={[coins.length, isFetchingNextPage, paginationEnabled]}
+                extraData={[theme, isRefetching]}
                 ListHeaderComponent={
                     <ListHeader
                         searchQuery={searchQuery}
@@ -407,17 +376,7 @@ export default function CoinList() {
                 }
                 ListEmptyComponent={<EmptyListComponent searchQuery={debouncedSearchQuery} />}
                 ListFooterComponent={
-                    <>
-                        <ListFooter isFetchingNextPage={isFetchingNextPage} theme={theme} />
-                        {coins.length > 0 && !isFetchingNextPage && hasNextPage && (
-                            <TouchableOpacity
-                                onPress={handleLoadMore}
-                                style={styles.loadMoreButton}
-                                disabled={isFetchingNextPage || !paginationEnabled}
-                            >
-                            </TouchableOpacity>
-                        )}
-                    </>
+                    <ListFooter isFetchingNextPage={isFetchingNextPage} theme={theme} />
                 }
                 refreshControl={
                     <RefreshControl
@@ -427,10 +386,9 @@ export default function CoinList() {
                         onRefresh={handleRefresh}
                     />
                 }
-                drawDistance={ITEM_HEIGHT * 5} 
                 contentContainerStyle={{
-                    paddingBottom: wp(20), 
-                    minHeight: '100%', 
+                    paddingBottom: wp(20),
+                    minHeight: '100%',
                 }}
             />
         </View>

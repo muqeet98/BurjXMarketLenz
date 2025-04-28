@@ -22,12 +22,25 @@ import BottomSheet, {
     BottomSheetFlatList
 } from '@gorhom/bottom-sheet';
 import { styles } from './styles';
+import { MMKV } from 'react-native-mmkv';
+import SQLite from 'react-native-sqlite-storage';
+
+// Initialize MMKV storage
+export const storage = new MMKV();
+
+// Initialize SQLite database
+const db = SQLite.openDatabase(
+    { name: 'crypto.db', location: 'default' },
+    () => console.log('Database opened successfully'),
+    error => console.error('Database error:', error)
+);
 
 // Constants
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const API_BASE_URL = 'https://coingeko.burjx.com/coin-ohlc';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 const REFETCH_INTERVAL = 30000; // 30 seconds
+const DB_VERSION = 1; // For future migrations
 
 // Sample data
 const SAMPLE_DATA = [
@@ -53,46 +66,164 @@ const cryptocurrencies = [
 const timeFrameOptions = ['1D', '1W', '1M', '1Y'];
 
 const timeFrameMap = {
-    '1D': { days: 1, interval: 'hour' },
-    '1W': { days: 7, interval: 'day' },
-    '1M': { days: 30, interval: 'day' },
-    '1Y': { days: 365, interval: 'week' },
-    'ALL': { days: 'max', interval: 'month' }
+    '1D': { days: 1, interval: 'hour', useMMKV: true },
+    '1W': { days: 7, interval: 'day', useMMKV: true },
+    '1M': { days: 30, interval: 'day', useMMKV: false },
+    '1Y': { days: 365, interval: 'week', useMMKV: false },
+    'ALL': { days: 'max', interval: 'month', useMMKV: false }
 };
 
-// Simple cache implementation
-class DataCache {
-    constructor(maxSize = 10) {
-        this.maxSize = maxSize;
-        this.cache = new Map();
-    }
-
-    get(key) {
-        const item = this.cache.get(key);
-        if (!item) return null;
+// Database setup
+const setupDatabase = () => {
+    // Store the DB version in MMKV for migrations
+    const storedVersion = storage.getNumber('db_version') || 0;
+    
+    db.transaction(tx => {
+        // Create tables if they don't exist
+        tx.executeSql(
+            `CREATE TABLE IF NOT EXISTS price_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                crypto_id TEXT,
+                product_id INTEGER,
+                timeframe TEXT,
+                timestamp INTEGER,
+                open REAL,
+                high REAL,
+                low REAL,
+                close REAL,
+                UNIQUE(crypto_id, timeframe, timestamp)
+            );`
+        );
         
-        if (Date.now() - item.timestamp > CACHE_DURATION) {
-            this.cache.delete(key);
-            return null;
+        tx.executeSql(
+            `CREATE TABLE IF NOT EXISTS metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                timestamp INTEGER
+            );`
+        );
+        
+        // Create indexes
+        tx.executeSql(
+            `CREATE INDEX IF NOT EXISTS idx_price_crypto_time ON price_data(crypto_id, timeframe, timestamp);`
+        );
+        
+        // Store new version
+        if (storedVersion < DB_VERSION) {
+            storage.set('db_version', DB_VERSION);
         }
-        
-        return item.value;
-    }
+    });
+};
 
-    set(key, value) {
-        if (this.cache.size >= this.maxSize) {
-            const oldestKey = this.cache.keys().next().value;
-            this.cache.delete(oldestKey);
-        }
-        
-        this.cache.set(key, {
-            value,
-            timestamp: Date.now()
+// Store crypto metadata in MMKV
+const storeCryptoMetadata = () => {
+    storage.set('crypto_metadata', JSON.stringify(cryptocurrencies));
+    storage.set('crypto_metadata_timestamp', Date.now());
+};
+
+// Functions for SQLite
+const storeChartDataInSQLite = (cryptoId, productId, timeframe, data) => {
+    return new Promise((resolve, reject) => {
+        db.transaction(tx => {
+            // Update cache timestamp
+            tx.executeSql(
+                'INSERT OR REPLACE INTO metadata (key, value, timestamp) VALUES (?, ?, ?)',
+                [`${cryptoId}_${timeframe}_timestamp`, Date.now().toString(), Date.now()]
+            );
+            
+            // Clear old data for this timeframe if needed
+            // For incremental updates, you'd modify this to only delete overlapping data
+            tx.executeSql(
+                'DELETE FROM price_data WHERE crypto_id = ? AND timeframe = ?',
+                [cryptoId, timeframe]
+            );
+            
+            // Insert new data
+            const insertPromises = data.map(entry => {
+                return new Promise((resInsert, rejInsert) => {
+                    tx.executeSql(
+                        `INSERT OR REPLACE INTO price_data 
+                        (crypto_id, product_id, timeframe, timestamp, open, high, low, close) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            cryptoId,
+                            productId,
+                            timeframe,
+                            entry.date,
+                            entry.usd.open,
+                            entry.usd.high,
+                            entry.usd.low,
+                            entry.usd.close
+                        ],
+                        (_, resultSet) => resInsert(resultSet),
+                        (_, error) => rejInsert(error)
+                    );
+                });
+            });
+            
+            Promise.all(insertPromises)
+                .then(() => resolve(true))
+                .catch(error => reject(error));
         });
-    }
-}
+    });
+};
 
-const dataCache = new DataCache(20);
+const getChartDataFromSQLite = (cryptoId, timeframe) => {
+    return new Promise((resolve, reject) => {
+        db.transaction(tx => {
+            // Check if we have a recent cache
+            tx.executeSql(
+                'SELECT value FROM metadata WHERE key = ?',
+                [`${cryptoId}_${timeframe}_timestamp`],
+                (_, result) => {
+                    if (result.rows.length > 0) {
+                        const timestamp = parseInt(result.rows.item(0).value);
+                        const dataAge = Date.now() - timestamp;
+                        
+                        // If cache is too old, reject to force refresh
+                        if (dataAge > CACHE_DURATION) {
+                            reject(new Error('Cache expired'));
+                            return;
+                        }
+                        
+                        // Get the data
+                        tx.executeSql(
+                            `SELECT * FROM price_data 
+                            WHERE crypto_id = ? AND timeframe = ? 
+                            ORDER BY timestamp ASC`,
+                            [cryptoId, timeframe],
+                            (_, dataResult) => {
+                                if (dataResult.rows.length === 0) {
+                                    reject(new Error('No data found'));
+                                    return;
+                                }
+                                
+                                const chartData = [];
+                                for (let i = 0; i < dataResult.rows.length; i++) {
+                                    const row = dataResult.rows.item(i);
+                                    chartData.push({
+                                        date: row.timestamp,
+                                        usd: {
+                                            open: row.open,
+                                            high: row.high,
+                                            low: row.low,
+                                            close: row.close
+                                        }
+                                    });
+                                }
+                                resolve(chartData);
+                            },
+                            (_, error) => reject(error)
+                        );
+                    } else {
+                        reject(new Error('No cache timestamp found'));
+                    }
+                },
+                (_, error) => reject(error)
+            );
+        });
+    });
+};
 
 // Data processing functions
 // Data sampling for large datasets
@@ -274,6 +405,12 @@ const CryptoPriceChart = (props) => {
     const appState = useRef(AppState.currentState);
     const refreshInterval = useRef(null);
     
+    // Initialize DB and cache when app starts
+    useEffect(() => {
+        setupDatabase();
+        storeCryptoMetadata();
+    }, []);
+    
     // Set selected crypto from route params
     useEffect(() => {
         if (coin) {
@@ -307,124 +444,113 @@ const CryptoPriceChart = (props) => {
         };
     }, []);
 
-    // Paginated fetch for large datasets
-const fetchDataWithPagination = async (url, signal, isLargeTimeframe = false) => {
-    const response = await fetch(url, { signal });
-    
-    if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
-    }
-    
-    let data = await response.json();
-    
-    // For large timeframes, we might need to process data differently
-    if (isLargeTimeframe && data && Array.isArray(data)) {
-        // Even before sampling, we might want to discard some points
-        // For "ALL" timeframe, we might only need significant milestones
-        if (data.length > 1000) {
-            // For extremely large datasets, pre-filter before sampling
-            // Keep only 1 point per day/week depending on size
-            const filteredData = [];
-            let lastTimestamp = 0;
-            const timeGap = data.length > 5000 ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    // Fetch from API with pagination for large datasets
+    const fetchFromAPI = async (cryptoId, productId, timeframe) => {
+        if (abortController.current) {
+            abortController.current.abort();
+        }
+        
+        abortController.current = new AbortController();
+        
+        const { days } = timeFrameMap[timeframe];
+        const isLargeTimeframe = timeframe === 'ALL' || timeframe === '1Y';
+        
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}?productId=${productId}&days=${days}`,
+                { signal: abortController.current.signal }
+            );
             
-            for (const point of data) {
-                if (point.date - lastTimestamp >= timeGap) {
-                    filteredData.push(point);
-                    lastTimestamp = point.date;
-                }
+            if (!response.ok) {
+                throw new Error(`API responded with status: ${response.status}`);
             }
             
-            data = filteredData;
-            console.log(`Pre-filtered data from ${data.length} to ${filteredData.length} points`);
-        }
-    }
-    
-    return data;
-};
-
-// Data fetching function
-const fetchData = useCallback(async () => {
-    if (dataFetchingInProgress.current) return;
-    
-    if (abortController.current) {
-        abortController.current.abort();
-    }
-    
-    abortController.current = new AbortController();
-    dataFetchingInProgress.current = true;
-    
-    try {
-        dispatch({ type: 'crypto/fetchStart' });
-        
-        const { productId } = selectedCrypto;
-        const { days } = timeFrameMap[selectedTimeFrame];
-        const cacheKey = `${productId}-${days}`;
-        const isLargeTimeframe = selectedTimeFrame === 'ALL' || selectedTimeFrame === '1Y';
-        
-        // Check cache first
-        const cachedData = dataCache.get(cacheKey);
-        if (cachedData) {
-            dispatch({
-                type: 'crypto/fetchSuccess',
-                payload: cachedData
-            });
-            dataFetchingInProgress.current = false;
-            return;
-        }
-        
-        // Use pagination for large datasets
-        const rawData = await fetchDataWithPagination(
-            `${API_BASE_URL}?productId=${productId}&days=${days}`,
-            abortController.current.signal,
-            isLargeTimeframe
-        );
-        
-        if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
-            throw new Error('Invalid data received from API');
-        }
-        
-        // Process data - sampling will happen in formatChartData for large datasets
-        const formattedData = formatChartData(rawData);
-        const priceChangeValue = calculatePriceChange(rawData);
-        
-        const lastItem = rawData[rawData.length - 1];
-        const lastPrice = lastItem.usd.close;
-        
-        const result = {
-                chartData: formattedData,
-                currentPrice: lastPrice,
-                priceChange: priceChangeValue,
-                marketData: {
-                    marketCap: `${(lastPrice * 19_000_000).toLocaleString()}`,
-                    volume24h: `${(lastPrice * 500_000).toLocaleString()}`,
-                    circulatingSupply: `${selectedCrypto.symbol}`,
-                    allTimeHigh: `${(lastPrice * 1.2).toLocaleString()}`
-                }
-            };
+            let data = await response.json();
             
-            // Cache the result
-            dataCache.set(cacheKey, result);
-            
-            // Update Redux only if component is still mounted
-            if (isMounted.current) {
-                dispatch({
-                    type: 'crypto/fetchSuccess',
-                    payload: result
-                });
-            }
-        } catch (error) {
-            if (error.name !== 'AbortError' && isMounted.current) {
-                console.error('Error fetching data:', error);
+            // For large timeframes, pre-filter before saving to reduce storage size
+            if (isLargeTimeframe && data && Array.isArray(data) && data.length > 1000) {
+                const filteredData = [];
+                let lastTimestamp = 0;
+                const timeGap = data.length > 5000 ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
                 
-                // Try to use sample data as fallback
-                if (SAMPLE_DATA.length > 0) {
-                    console.log('Using fallback sample data');
+                for (const point of data) {
+                    if (point.date - lastTimestamp >= timeGap) {
+                        filteredData.push(point);
+                        lastTimestamp = point.date;
+                    }
+                }
+                
+                data = filteredData;
+            }
+            
+            return data;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('Fetch aborted');
+            } else {
+                console.error('API fetch error:', error);
+            }
+            throw error;
+        }
+    };
+    
+    // Store data using the appropriate storage method
+    const storeData = async (cryptoId, productId, timeframe, data) => {
+        const { useMMKV } = timeFrameMap[timeframe];
+        
+        if (useMMKV) {
+            // For shorter timeframes, use MMKV for speed
+            storage.set(`crypto_${cryptoId}_${timeframe}`, JSON.stringify(data));
+            storage.set(`crypto_${cryptoId}_${timeframe}_timestamp`, Date.now());
+            return true;
+        } else {
+            // For longer timeframes with more data points, use SQLite
+            return await storeChartDataInSQLite(cryptoId, productId, timeframe, data);
+        }
+    };
+    
+    // Get data from storage
+    const getDataFromStorage = async (cryptoId, timeframe) => {
+        const { useMMKV } = timeFrameMap[timeframe];
+        
+        if (useMMKV) {
+            // Get from MMKV
+            const storedData = storage.getString(`crypto_${cryptoId}_${timeframe}`);
+            const timestamp = storage.getNumber(`crypto_${cryptoId}_${timeframe}_timestamp`);
+            
+            if (!storedData || !timestamp || (Date.now() - timestamp > CACHE_DURATION)) {
+                throw new Error('MMKV cache missing or expired');
+            }
+            
+            return JSON.parse(storedData);
+        } else {
+            // Get from SQLite
+            return await getChartDataFromSQLite(cryptoId, timeframe);
+        }
+    };
+    
+    // Main data fetching function with storage integration
+    const fetchData = useCallback(async () => {
+        if (dataFetchingInProgress.current) return;
+        dataFetchingInProgress.current = true;
+        
+        try {
+            dispatch({ type: 'crypto/fetchStart' });
+            
+            const { id: cryptoId, productId } = selectedCrypto;
+            const timeframe = selectedTimeFrame;
+            
+            // First try to get data from storage
+            try {
+                const storedData = await getDataFromStorage(cryptoId, timeframe);
+                
+                if (storedData && Array.isArray(storedData) && storedData.length > 0) {
+                    // Process the stored data
+                    const formattedData = formatChartData(storedData);
+                    const priceChangeValue = calculatePriceChange(storedData);
+                    const lastItem = storedData[storedData.length - 1];
                     
-                    const formattedData = formatChartData(SAMPLE_DATA);
-                    const priceChangeValue = calculatePriceChange(SAMPLE_DATA);
-                    const lastItem = SAMPLE_DATA[SAMPLE_DATA.length - 1];
-                    
+                    // Dispatch to Redux store
                     dispatch({
                         type: 'crypto/fetchSuccess',
                         payload: {
@@ -439,17 +565,129 @@ const fetchData = useCallback(async () => {
                             }
                         }
                     });
-                } else {
-                    dispatch({
-                        type: 'crypto/fetchError',
-                        payload: error.message
-                    });
+                    
+                    // If data is getting old, fetch in background but don't block UI
+                    const dataAge = Date.now() - (
+                        timeFrameMap[timeframe].useMMKV 
+                            ? storage.getNumber(`crypto_${cryptoId}_${timeframe}_timestamp`) 
+                            : parseInt(await new Promise(resolve => {
+                                db.transaction(tx => {
+                                    tx.executeSql(
+                                        'SELECT value FROM metadata WHERE key = ?',
+                                        [`${cryptoId}_${timeframe}_timestamp`],
+                                        (_, result) => {
+                                            if (result.rows.length > 0) {
+                                                resolve(result.rows.item(0).value);
+                                            } else {
+                                                resolve('0');
+                                            }
+                                        }
+                                    );
+                                });
+                            }))
+                    );
+                    
+                    if (dataAge > CACHE_DURATION / 2) {
+                        // Fetch fresh data in background
+                        setTimeout(() => {
+                            fetchFreshData(cryptoId, productId, timeframe);
+                        }, 0);
+                    }
+                    
+                    dataFetchingInProgress.current = false;
+                    return;
                 }
+            } catch (err) {
+                console.log('Cache miss or expired:', err.message);
+                // Continue to fetch fresh data
+            }
+            
+            // Fetch fresh data from API
+            await fetchFreshData(cryptoId, productId, timeframe);
+            
+        } catch (error) {
+            console.error('Error in fetchData:', error);
+            
+            // On error, try to use sample data as fallback
+            if (SAMPLE_DATA.length > 0) {
+                console.log('Using fallback sample data');
+                
+                const formattedData = formatChartData(SAMPLE_DATA);
+                const priceChangeValue = calculatePriceChange(SAMPLE_DATA);
+                const lastItem = SAMPLE_DATA[SAMPLE_DATA.length - 1];
+                
+                dispatch({
+                    type: 'crypto/fetchSuccess',
+                    payload: {
+                        chartData: formattedData,
+                        currentPrice: lastItem.usd.close,
+                        priceChange: priceChangeValue,
+                        marketData: {
+                            marketCap: `${(lastItem.usd.close * 19_000_000).toLocaleString()}`,
+                            volume24h: `${(lastItem.usd.close * 500_000).toLocaleString()}`,
+                            circulatingSupply: `${selectedCrypto.symbol}`,
+                            allTimeHigh: `${(lastItem.usd.close * 1.2).toLocaleString()}`
+                        }
+                    }
+                });
+            } else {
+                dispatch({
+                    type: 'crypto/fetchError',
+                    payload: error.message
+                });
             }
         } finally {
             dataFetchingInProgress.current = false;
         }
     }, [selectedCrypto, selectedTimeFrame, dispatch]);
+
+    // Function to fetch fresh data from API and store it
+    const fetchFreshData = async (cryptoId, productId, timeframe) => {
+        try {
+            const rawData = await fetchFromAPI(cryptoId, productId, timeframe);
+            
+            if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
+                throw new Error('Invalid data received from API');
+            }
+            
+            // Store the data
+            await storeData(cryptoId, productId, timeframe, rawData);
+            
+            // Process data
+            const formattedData = formatChartData(rawData);
+            const priceChangeValue = calculatePriceChange(rawData);
+            
+            const lastItem = rawData[rawData.length - 1];
+            const lastPrice = lastItem.usd.close;
+            
+            const result = {
+                chartData: formattedData,
+                currentPrice: lastPrice,
+                priceChange: priceChangeValue,
+                marketData: {
+                    marketCap: `${(lastPrice * 19_000_000).toLocaleString()}`,
+                    volume24h: `${(lastPrice * 500_000).toLocaleString()}`,
+                    circulatingSupply: `${selectedCrypto.symbol}`,
+                    allTimeHigh: `${(lastPrice * 1.2).toLocaleString()}`
+                }
+            };
+            
+            // Update Redux store if component is still mounted
+            if (isMounted.current) {
+                dispatch({
+                    type: 'crypto/fetchSuccess',
+                    payload: result
+                });
+            }
+            
+            return result;
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Error fetching fresh data:', error);
+                throw error;
+            }
+        }
+    };
 
     // Set up data fetching when component is focused
     useFocusEffect(
@@ -457,10 +695,12 @@ const fetchData = useCallback(async () => {
             fetchData();
             
             // Set up polling interval for real-time updates
-            // Only use frequent updates for smaller time frames
+            // Less frequent polling for large timeframes
             const updateInterval = selectedTimeFrame === 'ALL' || selectedTimeFrame === '1Y' 
-                ? REFETCH_INTERVAL * 2  // Less frequent updates for large datasets
-                : REFETCH_INTERVAL;
+                ? REFETCH_INTERVAL * 5  // Much less frequent updates for large datasets
+                : selectedTimeFrame === '1M'
+                    ? REFETCH_INTERVAL * 2  // Less frequent updates for medium datasets
+                    : REFETCH_INTERVAL;     // Frequent updates for small datasets
                 
             refreshInterval.current = setInterval(() => {
                 if (appState.current === 'active') {
@@ -520,49 +760,49 @@ const fetchData = useCallback(async () => {
         chartData || { candleData: [], lineData: [] }, 
     [chartData]);
 
-    // Optimized performant chart components
-const LineChartComponent = memo(({ data }) => (
-    <LineChart.Provider data={data}>
-        <LineChart height={220} width={SCREEN_WIDTH - 20}>
-            <LineChart.Path color="#86FF00" width={2}>
-                <LineChart.Gradient />
-            </LineChart.Path>
-            <LineChart.CursorCrosshair color="#86FF00" />
-        </LineChart>
-    </LineChart.Provider>
-));
+    // Optimized chart components
+    const LineChartComponent = memo(({ data }) => (
+        <LineChart.Provider data={data}>
+            <LineChart height={220} width={SCREEN_WIDTH - 20}>
+                <LineChart.Path color="#86FF00" width={2}>
+                    <LineChart.Gradient />
+                </LineChart.Path>
+                <LineChart.CursorCrosshair color="#86FF00" />
+            </LineChart>
+        </LineChart.Provider>
+    ));
 
-const CandleChartComponent = memo(({ data }) => (
-    <CandlestickChart.Provider data={data}>
-        <CandlestickChart height={220} width={SCREEN_WIDTH - 20}>
-            <CandlestickChart.Candles
-                positiveColor="#86FF00"
-                negativeColor="#FF4D4D"
-                wickColor="white"
-            />
-            <CandlestickChart.Crosshair>
-                <CandlestickChart.Tooltip />
-            </CandlestickChart.Crosshair>
-        </CandlestickChart>
-    </CandlestickChart.Provider>
-));
+    const CandleChartComponent = memo(({ data }) => (
+        <CandlestickChart.Provider data={data}>
+            <CandlestickChart height={220} width={SCREEN_WIDTH - 20}>
+                <CandlestickChart.Candles
+                    positiveColor="#86FF00"
+                    negativeColor="#FF4D4D"
+                    wickColor="white"
+                />
+                <CandlestickChart.Crosshair>
+                    <CandlestickChart.Tooltip />
+                </CandlestickChart.Crosshair>
+            </CandlestickChart>
+        </CandlestickChart.Provider>
+    ));
 
-// Chart rendering - using memoized components
-const renderChart = useMemo(() => {
-    if (isLoading) {
-        return <EmptyChart isLoading={true} />;
-    }
-    
-    if (chartType === 'line' && lineData?.length > 0) {
-        return <LineChartComponent data={lineData} />;
-    } 
-    
-    if (candleData?.length > 0) {
-        return <CandleChartComponent data={candleData} />;
-    }
-    
-    return <EmptyChart isLoading={false} />;
-}, [chartType, lineData, candleData, isLoading]);
+    // Chart rendering - using memoized components
+    const renderChart = useMemo(() => {
+        if (isLoading) {
+            return <EmptyChart isLoading={true} />;
+        }
+        
+        if (chartType === 'line' && lineData?.length > 0) {
+            return <LineChartComponent data={lineData} />;
+        } 
+        
+        if (candleData?.length > 0) {
+            return <CandleChartComponent data={candleData} />;
+        }
+        
+        return <EmptyChart isLoading={false} />;
+    }, [chartType, lineData, candleData, isLoading]);
 
     // Memoized time frame buttons
     const renderTimeFrameButtons = useMemo(() => (

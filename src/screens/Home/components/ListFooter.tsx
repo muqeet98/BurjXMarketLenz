@@ -27,7 +27,7 @@ export const ListFooter = React.memo(({
             </View>
         ) : (
             <View style={styles.endOfListContainer}>
-                <Text style={styles.endOfListText}>End of list</Text>
+                {/* <Text style={styles.endOfListText}>End of list</Text> */}
             </View>
         )}
     </>
