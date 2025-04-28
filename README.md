@@ -34,6 +34,13 @@ This project uses the following technologies and libraries:
 - **React Native Reanimated**: For optimizing animations to ensure smooth transitions and interactions.
 - **React Native AsyncStorage**: For saving cached data for offline usage.
 
+
+
+## **Demo Video** 
+
+You can watch the walkthrough video of the application here. https://drive.google.com/file/d/1G6GOGgMZ1-USBm_wohgKZgHOhNgz2sks/view
+
+
 ## **Installation and Setup**
 
 Follow these steps to set up the project on your local machine:
