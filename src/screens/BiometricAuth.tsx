@@ -2,11 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, SafeAreaView, Platform } from 'react-native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
-import { useDispatch, useSelector } from 'react-redux';
-import { setAuthenticated, setBiometricsEnabled } from '../store/slices/authSlice';
+import { useDispatch } from 'react-redux';
+import { setAuthenticated } from '../store/slices/authSlice';
 import { useTheme } from '../hooks/useTheme';
 import { iconPath } from '../constants/Icons';
-
 import ResponsiveText from '../components/common/ResponsiveText';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,14 +25,11 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
   const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  const biometricsEnabled = useSelector((state) => state.auth.biometricsEnabled);
-
   useEffect(() => {
     const initialize = async () => {
       setIsLoading(true);
       try {
-        await loadBiometricsState();
-        await checkBiometricsAvailability();
+        await checkBiometricsState();
       } catch (error) {
         console.error('Initialization error:', error);
       } finally {
@@ -44,51 +40,20 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
     initialize();
   }, []);
 
-  // Load biometrics state from AsyncStorage
-  const loadBiometricsState = async () => {
+  // Check biometrics availability and stored state in one function
+  const checkBiometricsState = async () => {
     try {
-      const storedState = await AsyncStorage.getItem('biometricsEnabled');
-      if (storedState !== null) {
-        const isEnabled = storedState === 'true';
-        setIsBiometricsEnabled(isEnabled);
-        dispatch(setBiometricsEnabled(isEnabled));
-      }
-    } catch (error) {
-      console.error('Error loading biometrics state:', error);
-    }
-  };
-
-  // Save biometrics state to AsyncStorage
-  const saveBiometricsState = async (isEnabled) => {
-    try {
-      await AsyncStorage.setItem('biometricsEnabled', isEnabled.toString());
-    } catch (error) {
-      console.error('Error saving biometrics state:', error);
-    }
-  };
-
-  const handleAuthSuccess = () => {
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      // Using navigate instead of replace to prevent potential navigation issues
-      navigation.navigate('Home');
-    }
-  };
-
-  const checkBiometricsAvailability = async () => {
-    try {
+      // Check if biometrics are available on the device
       const { available, biometryType } = await rnBiometrics.isSensorAvailable();
-
+      
       if (available) {
         setBiometryType(biometryType);
-        setIsBiometricsEnabled(biometricsEnabled);
         
-        // Don't automatically prompt for verification on component mount
-        // This can cause iOS Face ID to trigger too early before UI is ready
-        // Let the user initiate authentication with the button instead
+        // Check if biometrics are enabled in AsyncStorage
+        const storedState = await AsyncStorage.getItem('biometricsEnabled');
+        const isEnabled = storedState === 'true';
+        setIsBiometricsEnabled(isEnabled);
       } else {
-        dispatch(setBiometricsEnabled(false));
         Alert.alert(
           'Biometrics Not Available',
           'Your device does not support biometric authentication. You can still use the app with manual authentication.',
@@ -97,13 +62,20 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
       }
     } catch (error) {
       console.error('Error checking biometrics:', error);
-      dispatch(setBiometricsEnabled(false));
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      navigation.navigate('Home');
     }
   };
 
   const handleAuthentication = async () => {
     try {
-      // Adjust prompt message for iOS Face ID vs Touch ID
+      // Adjust prompt message based on biometry type and whether it's already set up
       let promptMessage = 'Authenticate to access Crypto Tracker';
       
       if (Platform.OS === 'ios') {
@@ -121,32 +93,26 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
       const result = await rnBiometrics.simplePrompt({
         promptMessage,
         cancelButtonText: 'Cancel',
-        // Add a timeout to prevent Face ID infinite wait bug on iOS
         fallbackPromptMessage: 'Please use your device passcode',
       });
       
       if (result && result.success) {
-        // If not already enabled, this is the setup process
+        // If not already enabled, save the setup state
         if (!isBiometricsEnabled) {
-          dispatch(setBiometricsEnabled(true));
-          await saveBiometricsState(true);
+          await AsyncStorage.setItem('biometricsEnabled', 'true');
+          setIsBiometricsEnabled(true);
         }
         
-        dispatch(setAuthenticated(true));
-        // Save authentication state
+        // Mark as authenticated and proceed
         await AsyncStorage.setItem('isAuthenticated', 'true');
         handleAuthSuccess();
+        dispatch(setAuthenticated(true));
       }
     } catch (error) {
       console.error('Authentication error:', error);
       
-      // Handle specific iOS error cases
-      if (Platform.OS === 'ios') {
-        if (error.message && error.message.includes('cancelled')) {
-          // User cancelled - no need for an alert
-          return;
-        }
-        
+      // Only show alert if not a user cancellation
+      if (Platform.OS === 'ios' && error.message && !error.message.includes('cancelled')) {
         Alert.alert(
           'Authentication Failed',
           'Please try again or use an alternative login method.',
@@ -157,9 +123,10 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
   };
 
   const skipAuthentication = async () => {
-    dispatch(setAuthenticated(true));
-    await AsyncStorage.setItem('isAuthenticated', 'true');
+    // Skip biometric setup
     await AsyncStorage.setItem('biometricsEnabled', 'false');
+    await AsyncStorage.setItem('isAuthenticated', 'true');
+    dispatch(setAuthenticated(true));
     handleAuthSuccess();
   };
 
@@ -172,7 +139,7 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
     );
   }
 
-  // Determine screen text based on biometrics type and status
+  // Determine title text based on biometry type and setup state
   let titleText = 'Use Biometric\nto log in?';
   if (biometryType === BiometryTypes.FaceID) {
     titleText = isBiometricsEnabled ? 'Verify with Face ID' : 'Use Face ID\nto log in?';
@@ -180,7 +147,7 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
     titleText = isBiometricsEnabled ? 'Verify with Touch ID' : 'Use Touch ID\nto log in?';
   }
     
-  // Determine button text
+  // Determine button text based on setup state
   const buttonText = isBiometricsEnabled ? 'Verify' : 'Set Up';
 
   return (
@@ -193,7 +160,6 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
         <Image 
           style={{ width: 286, height: 286, alignSelf: 'center' }} 
           source={iconPath?.FaceLock} 
-          // Add resize mode to prevent image loading issues
           resizeMode="contain"
         />
       </View>
@@ -206,14 +172,14 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
           <Text style={styles.buttonText}>{buttonText}</Text>
         </TouchableOpacity>
 
-        {!isBiometricsEnabled && (
+        {/* {!isBiometricsEnabled && (
           <TouchableOpacity
             style={[styles.skipButton]}
             onPress={skipAuthentication}
           >
             <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>Skip for now</Text>
           </TouchableOpacity>
-        )}
+        )} */}
       </View>
     </SafeAreaView>
   );

@@ -50,7 +50,7 @@ const cryptocurrencies = [
     { id: 'ada', productId: 4, name: 'Cardano', symbol: 'ADA', color: '#0033AD', currentPrice: 0.45 },
 ];
 
-const timeFrameOptions = ['1D', '1W', '1M', '1Y', 'ALL'];
+const timeFrameOptions = ['1D', '1W', '1M', '1Y'];
 
 const timeFrameMap = {
     '1D': { days: 1, interval: 'hour' },
