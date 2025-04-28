@@ -23,7 +23,7 @@ export const ListFooter = React.memo(({
             />
         ) : hasNextPage ? (
             <View style={styles.endOfListContainer}>
-                <Text style={styles.endOfListText}>Scroll to load more</Text>
+                {/* <Text style={styles.endOfListText}>Scroll to load more</Text> */}
             </View>
         ) : (
             <View style={styles.endOfListContainer}>

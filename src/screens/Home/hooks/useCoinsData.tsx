@@ -181,9 +181,7 @@ export const useCoinsData = (searchQuery: string, isOffline: boolean) => {
         }
     }, [searchQuery]);
     
-    // Real-time price update without full refetch
     const updatePrices = useCallback(async () => {
-        // Skip updates if already fetching anything
         if (isFetching || isRefetching || isScrolling || isRefreshingRef.current) {
             return;
         }
@@ -192,7 +190,6 @@ export const useCoinsData = (searchQuery: string, isOffline: boolean) => {
             isRefreshingRef.current = true;
             const newData = await fetchCoinsApi({ pageParam: 1, currency });
             
-            // Only update if we have data and component is still mounted
             if (!isComponentMounted.current || !newData) {
                 return;
             }
@@ -202,7 +199,6 @@ export const useCoinsData = (searchQuery: string, isOffline: boolean) => {
                 
                 const updatedPages = [...oldData.pages];
                 
-                // Only update existing coins - don't add/remove any
                 if (updatedPages.length > 0) {
                     updatedPages[0] = updatedPages[0].map(coin => {
                         const updatedCoin = newData.find(c => c.id === coin.id);
