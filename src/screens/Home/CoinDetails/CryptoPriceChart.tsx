@@ -2,25 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from '
 import {
     View,
     Text,
-    StyleSheet,
     SafeAreaView,
     TouchableOpacity,
     StatusBar,
     ActivityIndicator,
     Dimensions,
-    InteractionManager,
     Platform,
-    AppState,
-    UIManager,
-    LayoutAnimation
+    AppState
 } from 'react-native';
 import { LineChart, CandlestickChart } from 'react-native-wagmi-charts';
 import { BackArrowFilledIcon, BarChartIcon, CandleChartIcon, CapDownIcon } from '../../../constants/svgs';
-import { wp } from '../../../utils/Responsiveness';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ResponsiveText from '../../../components/common/ResponsiveText';
 import { fonts } from '../../../constants/Fonts';
-import { FlashList } from '@shopify/flash-list';
 import { useDispatch, useSelector } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
 import BottomSheet, { 
@@ -28,20 +22,15 @@ import BottomSheet, {
     BottomSheetFlatList
 } from '@gorhom/bottom-sheet';
 import { styles } from './styles';
-// Enable LayoutAnimation for Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // Constants
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const API_BASE_URL = 'https://coingeko.burjx.com/coin-ohlc';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 const REFETCH_INTERVAL = 30000; // 30 seconds
-const ITEMS_PER_PAGE = 100; // For paginated data loading
 
-// Sample data (frozen to prevent mutations)
-const SAMPLE_DATA = Object.freeze([
+// Sample data
+const SAMPLE_DATA = [
     {
         "date": 1745672400000,
         "usd": { "open": 94345, "high": 94345, "low": 94251, "close": 94258 },
@@ -52,51 +41,45 @@ const SAMPLE_DATA = Object.freeze([
         "usd": { "open": 94262, "high": 94296, "low": 94218, "close": 94218 },
         "aed": { "open": 346223, "high": 346348, "low": 346064, "close": 346064 }
     }
-]);
+];
 
-const cryptocurrencies = Object.freeze([
+const cryptocurrencies = [
     { id: 'btc', productId: 2, name: 'Bitcoin', symbol: 'BTC', color: '#F7931A', currentPrice: 94258 },
     { id: 'eth', productId: 3, name: 'Ethereum', symbol: 'ETH', color: '#627EEA', currentPrice: 3524.78 },
     { id: 'sol', productId: 16, name: 'Solana', symbol: 'SOL', color: '#00FFA3', currentPrice: 187.65 },
     { id: 'ada', productId: 4, name: 'Cardano', symbol: 'ADA', color: '#0033AD', currentPrice: 0.45 },
-]);
+];
 
-const timeFrameOptions = Object.freeze(['1D', '1W', '1M', '1Y', 'ALL']);
+const timeFrameOptions = ['1D', '1W', '1M', '1Y', 'ALL'];
 
-const timeFrameMap = Object.freeze({
+const timeFrameMap = {
     '1D': { days: 1, interval: 'hour' },
     '1W': { days: 7, interval: 'day' },
     '1M': { days: 30, interval: 'day' },
     '1Y': { days: 365, interval: 'week' },
     'ALL': { days: 'max', interval: 'month' }
-});
+};
 
-class LRUCache {
+// Simple cache implementation
+class DataCache {
     constructor(maxSize = 10) {
         this.maxSize = maxSize;
         this.cache = new Map();
     }
 
     get(key) {
-        if (!this.cache.has(key)) return null;
-        
         const item = this.cache.get(key);
+        if (!item) return null;
         
-        // Check if the item is still valid
         if (Date.now() - item.timestamp > CACHE_DURATION) {
             this.cache.delete(key);
             return null;
         }
         
-        // Refresh item position (most recently used)
-        this.cache.delete(key);
-        this.cache.set(key, item);
-        
         return item.value;
     }
 
     set(key, value) {
-        // If cache is full, remove the least recently used item
         if (this.cache.size >= this.maxSize) {
             const oldestKey = this.cache.keys().next().value;
             this.cache.delete(oldestKey);
@@ -107,101 +90,58 @@ class LRUCache {
             timestamp: Date.now()
         });
     }
-
-    clear() {
-        this.cache.clear();
-    }
 }
 
-const dataCache = new LRUCache(20);
+const dataCache = new DataCache(20);
 
-const setupWorker = () => {
-    if (typeof Worker !== 'undefined') {
-        const worker = new Worker(
-            URL.createObjectURL(
-                new Blob([
-                    `
-                    self.onmessage = function(e) {
-                        const { type, data } = e.data;
-                        
-                        if (type === 'formatChartData') {
-                            const result = formatChartData(data);
-                            self.postMessage({ type: 'chartDataFormatted', result });
-                        } else if (type === 'calculatePriceChange') {
-                            const result = calculatePriceChange(data);
-                            self.postMessage({ type: 'priceChangeCalculated', result });
-                        }
-                    };
-                    
-                    function formatChartData(data) {
-                        if (!data || !Array.isArray(data) || data.length === 0) {
-                            return { candleData: [], lineData: [] };
-                        }
-                    
-                        const candleData = data.map(entry => ({
-                            timestamp: entry.date,
-                            open: entry.usd.open,
-                            high: entry.usd.high,
-                            low: entry.usd.low,
-                            close: entry.usd.close
-                        }));
-                    
-                        const lineData = data.map(entry => ({
-                            timestamp: entry.date,
-                            value: entry.usd.close
-                        }));
-                    
-                        return { candleData, lineData };
-                    }
-                    
-                    function calculatePriceChange(data) {
-                        if (!data || data.length < 2) return 0;
-                        const oldPrice = data[0].usd.open;
-                        const newPrice = data[data.length - 1].usd.close;
-                        return ((newPrice - oldPrice) / oldPrice) * 100;
-                    }
-                    `
-                ], { type: 'application/javascript' })
-            )
-        );
-        
-        return worker;
+// Data processing functions
+// Data sampling for large datasets
+const sampleDataPoints = (data, maxPoints = 200) => {
+    if (!data || !Array.isArray(data) || data.length <= maxPoints) {
+        return data;
     }
     
-    return null;
+    const sampleInterval = Math.ceil(data.length / maxPoints);
+    const sampledData = [];
+    
+    // Always include first and last points for accurate representation
+    sampledData.push(data[0]);
+    
+    // Sample internal points
+    for (let i = sampleInterval; i < data.length - sampleInterval; i += sampleInterval) {
+        sampledData.push(data[i]);
+    }
+    
+    // Add the last point
+    sampledData.push(data[data.length - 1]);
+    
+    return sampledData;
 };
 
-// Fallback data processing functions (when worker is not available)
 const formatChartData = (data) => {
     if (!data || !Array.isArray(data) || data.length === 0) {
         return { candleData: [], lineData: [] };
     }
-
-    const totalItems = data.length;
-    const chunkSize = 50;
-    const candleData = [];
-    const lineData = [];
-
-    for (let i = 0; i < totalItems; i += chunkSize) {
-        const chunk = data.slice(i, Math.min(i + chunkSize, totalItems));
-        
-        for (let j = 0; j < chunk.length; j++) {
-            const entry = chunk[j];
-            
-            candleData.push({
-                timestamp: entry.date,
-                open: entry.usd.open,
-                high: entry.usd.high,
-                low: entry.usd.low,
-                close: entry.usd.close
-            });
-            
-            lineData.push({
-                timestamp: entry.date,
-                value: entry.usd.close
-            });
-        }
+    
+    // Determine if we need sampling based on dataset size and timeframe
+    let dataToProcess = data;
+    if (data.length > 300) {
+        dataToProcess = sampleDataPoints(data);
+        console.log(`Sampled data from ${data.length} to ${dataToProcess.length} points`);
     }
+
+    const candleData = dataToProcess.map(entry => ({
+        timestamp: entry.date,
+        open: entry.usd.open,
+        high: entry.usd.high,
+        low: entry.usd.low,
+        close: entry.usd.close
+    }));
+
+    const lineData = dataToProcess.map(entry => ({
+        timestamp: entry.date,
+        value: entry.usd.close
+    }));
 
     return { candleData, lineData };
 };
@@ -215,7 +155,7 @@ const calculatePriceChange = (data) => {
     return ((newPrice - oldPrice) / oldPrice) * 100;
 };
 
-// Redux selector for performance optimization
+// Redux selector
 const selectCryptoData = createSelector(
     state => state.crypto.selectedCrypto,
     state => state.crypto.selectedTimeFrame,
@@ -305,14 +245,13 @@ const CryptoItem = memo(({ item, onSelect, isActive }) => (
     </TouchableOpacity>
 ));
 
-// Main component implementation
+// Main component
 const CryptoPriceChart = (props) => {
-    const {coin} = props?.route?.params;
+    const { coin } = props?.route?.params || {};
     const navigation = useNavigation();
     const dispatch = useDispatch();
-
     
-    // Use memoized selector instead of multiple useSelector calls
+    // Use memoized selector
     const {
         selectedCrypto,
         selectedTimeFrame,
@@ -324,44 +263,30 @@ const CryptoPriceChart = (props) => {
         marketData
     } = useSelector(selectCryptoData);
     
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-    
     const bottomSheetRef = useRef(null);
-    const initialSnapPoints = useMemo(() => ['25%', '50%'], []);
+    const snapPoints = useMemo(() => ['25%', '50%'], []);
     const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
     
-    useEffect(() => {
-        if (coin) {
-                dispatch({ type: 'crypto/setSelectedCrypto', payload: coin });
-        }
-    }, [coin, dispatch]);
-    
+    // References
     const isMounted = useRef(true);
     const abortController = useRef(null);
-    const worker = useRef(null);
     const dataFetchingInProgress = useRef(false);
     const appState = useRef(AppState.currentState);
     const refreshInterval = useRef(null);
     
+    // Set selected crypto from route params
     useEffect(() => {
-        worker.current = setupWorker();
-        
-        return () => {
-            if (worker.current) {
-                worker.current.terminate();
-            }
-        };
-    }, []);
+        if (coin) {
+            dispatch({ type: 'crypto/setSelectedCrypto', payload: coin });
+        }
+    }, [coin, dispatch]);
     
+    // App state listener for background/foreground transitions
     useEffect(() => {
         const subscription = AppState.addEventListener('change', nextAppState => {
-            if (
-                appState.current.match(/inactive|background/) && 
-                nextAppState === 'active'
-            ) {
+            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
                 fetchData();
             }
-            
             appState.current = nextAppState;
         });
         
@@ -370,7 +295,7 @@ const CryptoPriceChart = (props) => {
         };
     }, []);
     
-    // Component lifecycle management
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             isMounted.current = false;
@@ -382,103 +307,94 @@ const CryptoPriceChart = (props) => {
         };
     }, []);
 
-    const processData = useCallback((rawData) => {
-        return new Promise((resolve) => {
-            if (worker.current) {
-                const messageHandler = (e) => {
-                    const { type, result } = e.data;
-                    
-                    if (type === 'chartDataFormatted') {
-                        worker.current.postMessage({
-                            type: 'calculatePriceChange',
-                            data: rawData
-                        });
-                    } else if (type === 'priceChangeCalculated') {
-                        worker.current.removeEventListener('message', messageHandler);
-                        resolve({
-                            formattedData: result.formattedData,
-                            priceChange: result.priceChange
-                        });
-                    }
-                };
-                
-                worker.current.addEventListener('message', messageHandler);
-                worker.current.postMessage({
-                    type: 'formatChartData',
-                    data: rawData
-                });
-            } else {
-                InteractionManager.runAfterInteractions(() => {
-                    const formattedData = formatChartData(rawData);
-                    const change = calculatePriceChange(rawData);
-                    resolve({
-                        formattedData,
-                        priceChange: change
-                    });
-                });
+    // Paginated fetch for large datasets
+const fetchDataWithPagination = async (url, signal, isLargeTimeframe = false) => {
+    const response = await fetch(url, { signal });
+    
+    if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+    }
+    
+    let data = await response.json();
+    
+    // For large timeframes, we might need to process data differently
+    if (isLargeTimeframe && data && Array.isArray(data)) {
+        // Even before sampling, we might want to discard some points
+        // For "ALL" timeframe, we might only need significant milestones
+        if (data.length > 1000) {
+            // For extremely large datasets, pre-filter before sampling
+            // Keep only 1 point per day/week depending on size
+            const filteredData = [];
+            let lastTimestamp = 0;
+            const timeGap = data.length > 5000 ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+            
+            for (const point of data) {
+                if (point.date - lastTimestamp >= timeGap) {
+                    filteredData.push(point);
+                    lastTimestamp = point.date;
+                }
             }
-        });
-    }, []);
+            
+            data = filteredData;
+            console.log(`Pre-filtered data from ${data.length} to ${filteredData.length} points`);
+        }
+    }
+    
+    return data;
+};
 
-    const fetchData = useCallback(async () => {
-        if (dataFetchingInProgress.current) {
+// Data fetching function
+const fetchData = useCallback(async () => {
+    if (dataFetchingInProgress.current) return;
+    
+    if (abortController.current) {
+        abortController.current.abort();
+    }
+    
+    abortController.current = new AbortController();
+    dataFetchingInProgress.current = true;
+    
+    try {
+        dispatch({ type: 'crypto/fetchStart' });
+        
+        const { productId } = selectedCrypto;
+        const { days } = timeFrameMap[selectedTimeFrame];
+        const cacheKey = `${productId}-${days}`;
+        const isLargeTimeframe = selectedTimeFrame === 'ALL' || selectedTimeFrame === '1Y';
+        
+        // Check cache first
+        const cachedData = dataCache.get(cacheKey);
+        if (cachedData) {
+            dispatch({
+                type: 'crypto/fetchSuccess',
+                payload: cachedData
+            });
+            dataFetchingInProgress.current = false;
             return;
         }
         
-        if (abortController.current) {
-            abortController.current.abort();
+        // Use pagination for large datasets
+        const rawData = await fetchDataWithPagination(
+            `${API_BASE_URL}?productId=${productId}&days=${days}`,
+            abortController.current.signal,
+            isLargeTimeframe
+        );
+        
+        if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
+            throw new Error('Invalid data received from API');
         }
         
-        abortController.current = new AbortController();
-        dataFetchingInProgress.current = true;
+        // Process data - sampling will happen in formatChartData for large datasets
+        const formattedData = formatChartData(rawData);
+        const priceChangeValue = calculatePriceChange(rawData);
         
-        try {
-            dispatch({ type: 'crypto/fetchStart' });
-            
-            const { productId } = selectedCrypto;
-            const { days } = timeFrameMap[selectedTimeFrame];
-            const cacheKey = `${productId}-${days}`;
-            
-            const cachedData = dataCache.get(cacheKey);
-            if (cachedData) {
-                dispatch({
-                    type: 'crypto/fetchSuccess',
-                    payload: cachedData
-                });
-                
-                if (isInitialLoad) {
-                    setIsInitialLoad(false);
-                }
-                
-                dataFetchingInProgress.current = false;
-                return;
-            }
-            
-            const response = await fetch(
-                `${API_BASE_URL}?productId=${productId}&days=${days}`,
-                { signal: abortController.current.signal }
-            );
-            
-            if (!response.ok) {
-                throw new Error(`API responded with status: ${response.status}`);
-            }
-            
-            const rawData = await response.json();
-            
-            if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
-                throw new Error('Invalid data received from API');
-            }
-            
-            const { formattedData, priceChange } = await processData(rawData);
-            
-            const lastItem = rawData[rawData.length - 1];
-            const lastPrice = lastItem.usd.close;
-            const aedPrice = lastItem.aed.close;
-            
-            const result = {
+        const lastItem = rawData[rawData.length - 1];
+        const lastPrice = lastItem.usd.close;
+        
+        const result = {
                 chartData: formattedData,
                 currentPrice: lastPrice,
-                priceChange,
+                priceChange: priceChangeValue,
                 marketData: {
                     marketCap: `${(lastPrice * 19_000_000).toLocaleString()}`,
                     volume24h: `${(lastPrice * 500_000).toLocaleString()}`,
@@ -496,10 +412,6 @@ const CryptoPriceChart = (props) => {
                     type: 'crypto/fetchSuccess',
                     payload: result
                 });
-                
-                if (isInitialLoad) {
-                    setIsInitialLoad(false);
-                }
             }
         } catch (error) {
             if (error.name !== 'AbortError' && isMounted.current) {
@@ -509,24 +421,23 @@ const CryptoPriceChart = (props) => {
                 if (SAMPLE_DATA.length > 0) {
                     console.log('Using fallback sample data');
                     
-                    const { formattedData, priceChange } = await processData(SAMPLE_DATA);
+                    const formattedData = formatChartData(SAMPLE_DATA);
+                    const priceChangeValue = calculatePriceChange(SAMPLE_DATA);
                     const lastItem = SAMPLE_DATA[SAMPLE_DATA.length - 1];
-                    
-                    const fallbackResult = {
-                        chartData: formattedData,
-                        currentPrice: lastItem.usd.close,
-                        priceChange,
-                        marketData: {
-                            marketCap: `${(lastItem.usd.close * 19_000_000).toLocaleString()}`,
-                            volume24h: `${(lastItem.usd.close * 500_000).toLocaleString()}`,
-                            circulatingSupply: `${selectedCrypto.symbol}`,
-                            allTimeHigh: `${(lastItem.usd.close * 1.2).toLocaleString()}`
-                        }
-                    };
                     
                     dispatch({
                         type: 'crypto/fetchSuccess',
-                        payload: fallbackResult
+                        payload: {
+                            chartData: formattedData,
+                            currentPrice: lastItem.usd.close,
+                            priceChange: priceChangeValue,
+                            marketData: {
+                                marketCap: `${(lastItem.usd.close * 19_000_000).toLocaleString()}`,
+                                volume24h: `${(lastItem.usd.close * 500_000).toLocaleString()}`,
+                                circulatingSupply: `${selectedCrypto.symbol}`,
+                                allTimeHigh: `${(lastItem.usd.close * 1.2).toLocaleString()}`
+                            }
+                        }
                     });
                 } else {
                     dispatch({
@@ -538,50 +449,47 @@ const CryptoPriceChart = (props) => {
         } finally {
             dataFetchingInProgress.current = false;
         }
-    }, [selectedCrypto, selectedTimeFrame, dispatch, processData, isInitialLoad]);
+    }, [selectedCrypto, selectedTimeFrame, dispatch]);
 
     // Set up data fetching when component is focused
     useFocusEffect(
         useCallback(() => {
-            // Fetch immediately when focused
             fetchData();
             
             // Set up polling interval for real-time updates
+            // Only use frequent updates for smaller time frames
+            const updateInterval = selectedTimeFrame === 'ALL' || selectedTimeFrame === '1Y' 
+                ? REFETCH_INTERVAL * 2  // Less frequent updates for large datasets
+                : REFETCH_INTERVAL;
+                
             refreshInterval.current = setInterval(() => {
                 if (appState.current === 'active') {
                     fetchData();
                 }
-            }, REFETCH_INTERVAL);
+            }, updateInterval);
             
-            return () => {
-                clearInterval(refreshInterval.current);
-            };
-        }, [fetchData])
+            return () => clearInterval(refreshInterval.current);
+        }, [fetchData, selectedTimeFrame])
     );
 
-    // Event handlers - memoized with useCallback
+    // Event handlers
     const handleBackPress = useCallback(() => {
-        // Use LayoutAnimation for smooth transition
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         navigation.goBack();
     }, [navigation]);
 
     const handleCryptoSelect = useCallback((crypto) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         dispatch({ type: 'crypto/setSelectedCrypto', payload: crypto });
         bottomSheetRef.current?.close();
     }, [dispatch]);
 
     const handleTimeFrameSelect = useCallback((timeFrame) => {
         if (timeFrame !== selectedTimeFrame) {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             dispatch({ type: 'crypto/setSelectedTimeFrame', payload: timeFrame });
         }
     }, [dispatch, selectedTimeFrame]);
 
     const handleChartTypeToggle = useCallback((type) => {
         if (type !== chartType) {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             dispatch({ type: 'crypto/setChartType', payload: type });
         }
     }, [dispatch, chartType]);
@@ -607,44 +515,54 @@ const CryptoPriceChart = (props) => {
         []
     );
 
-    const { candleData, lineData } = useMemo(() => chartData || { candleData: [], lineData: [] }, [chartData]);
+    // Chart data extraction
+    const { candleData, lineData } = useMemo(() => 
+        chartData || { candleData: [], lineData: [] }, 
+    [chartData]);
 
-    const renderChart = useMemo(() => {
-        if (isLoading) {
-            return <EmptyChart isLoading={true} />;
-        }
-        if (chartType === 'line' && lineData && lineData.length > 0) {
-            return (
-                <LineChart.Provider data={lineData}>
-                    <LineChart height={220} width={SCREEN_WIDTH - 20}>
-                        <LineChart.Path color="#86FF00" width={2}>
-                            <LineChart.Gradient />
-                        </LineChart.Path>
-                        <LineChart.CursorCrosshair color="#86FF00" />
-                    </LineChart>
-                </LineChart.Provider>
-            );
-        } 
-        
-        if (candleData && candleData.length > 0) {
-            return (
-                <CandlestickChart.Provider data={candleData}>
-                    <CandlestickChart height={220} width={SCREEN_WIDTH - 20}>
-                        <CandlestickChart.Candles
-                            positiveColor="#86FF00"
-                            negativeColor="#FF4D4D"
-                            wickColor="white"
-                        />
-                        <CandlestickChart.Crosshair>
-                            <CandlestickChart.Tooltip />
-                        </CandlestickChart.Crosshair>
-                    </CandlestickChart>
-                </CandlestickChart.Provider>
-            );
-        }
-        
-        return <EmptyChart isLoading={false} />;
-    }, [chartType, lineData, candleData, isLoading]);
+    // Optimized performant chart components
+const LineChartComponent = memo(({ data }) => (
+    <LineChart.Provider data={data}>
+        <LineChart height={220} width={SCREEN_WIDTH - 20}>
+            <LineChart.Path color="#86FF00" width={2}>
+                <LineChart.Gradient />
+            </LineChart.Path>
+            <LineChart.CursorCrosshair color="#86FF00" />
+        </LineChart>
+    </LineChart.Provider>
+));
+
+const CandleChartComponent = memo(({ data }) => (
+    <CandlestickChart.Provider data={data}>
+        <CandlestickChart height={220} width={SCREEN_WIDTH - 20}>
+            <CandlestickChart.Candles
+                positiveColor="#86FF00"
+                negativeColor="#FF4D4D"
+                wickColor="white"
+            />
+            <CandlestickChart.Crosshair>
+                <CandlestickChart.Tooltip />
+            </CandlestickChart.Crosshair>
+        </CandlestickChart>
+    </CandlestickChart.Provider>
+));
+
+// Chart rendering - using memoized components
+const renderChart = useMemo(() => {
+    if (isLoading) {
+        return <EmptyChart isLoading={true} />;
+    }
+    
+    if (chartType === 'line' && lineData?.length > 0) {
+        return <LineChartComponent data={lineData} />;
+    } 
+    
+    if (candleData?.length > 0) {
+        return <CandleChartComponent data={candleData} />;
+    }
+    
+    return <EmptyChart isLoading={false} />;
+}, [chartType, lineData, candleData, isLoading]);
 
     // Memoized time frame buttons
     const renderTimeFrameButtons = useMemo(() => (
@@ -661,8 +579,8 @@ const CryptoPriceChart = (props) => {
         </View>
     ), [selectedTimeFrame, handleTimeFrameSelect, isLoading]);
 
-    // Memoized crypto list (for bottom sheet)
-    const renderCryptoList = useCallback(({ item }) => (
+    // Bottom sheet list item renderer
+    const renderCryptoItem = useCallback(({ item }) => (
         <CryptoItem 
             item={item} 
             onSelect={handleCryptoSelect} 
@@ -670,18 +588,21 @@ const CryptoPriceChart = (props) => {
         />
     ), [handleCryptoSelect, selectedCrypto.id]);
 
+    // Market data section - memoized
     const renderMarketData = useMemo(() => (
         <View style={styles.additionalDataContainer}>
-            <DataRow label="Market Cap" value={marketData.marketCap} />
-            <DataRow label="24h Volume" value={marketData.volume24h} />
-            <DataRow label="Circulating Supply" value={marketData.circulatingSupply} />
-            <DataRow label="All Time High" value={marketData.allTimeHigh} />
+            <DataRow label="Market Cap" value={marketData?.marketCap || '-'} />
+            <DataRow label="24h Volume" value={marketData?.volume24h || '-'} />
+            <DataRow label="Circulating Supply" value={marketData?.circulatingSupply || '-'} />
+            <DataRow label="All Time High" value={marketData?.allTimeHigh || '-'} />
         </View>
     ), [marketData]);
 
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
+            
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity 
                     activeOpacity={0.8} 
@@ -691,26 +612,28 @@ const CryptoPriceChart = (props) => {
                 >
                     <BackArrowFilledIcon />
                 </TouchableOpacity>
+                
                 <TouchableOpacity
                     style={styles.cryptoSelector}
                     onPress={handleBottomSheetOpen}
                     activeOpacity={0.7}
                 >
-                    <View style={[styles.cryptoIcon, { backgroundColor: selectedCrypto.color }]}>
-                        <Text style={styles.cryptoIconText}>{selectedCrypto.symbol}</Text>
+                    <View style={[styles.cryptoIcon, { backgroundColor: selectedCrypto?.color }]}>
+                        <Text style={styles.cryptoIconText}>{selectedCrypto?.symbol}</Text>
                     </View>
                     <ResponsiveText fontFamily={fonts.LufgaMedium} size={'h6'}>
-                        {selectedCrypto.name} ({selectedCrypto.symbol})
+                        {selectedCrypto?.name} ({selectedCrypto?.symbol})
                     </ResponsiveText>
                     <CapDownIcon />
                 </TouchableOpacity>
+                
                 <View style={styles.placeholder} />
             </View>
 
             {/* Price information */}
             <View style={styles.priceContainer}>
                 <ResponsiveText size={'h8'}>
-                    $ {isLoading ? '---' : currentPrice.toLocaleString(undefined, {
+                    $ {isLoading ? '---' : currentPrice?.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     })}
@@ -722,7 +645,7 @@ const CryptoPriceChart = (props) => {
                             styles.changeText,
                             { color: priceChange >= 0 ? '#86FF00' : '#FF4D4D' }
                         ]}>
-                            {priceChange >= 0 ? '+ ' : '- '}{Math.abs(priceChange).toFixed(2)}%
+                            {priceChange >= 0 ? '+ ' : '- '}{Math.abs(priceChange || 0).toFixed(2)}%
                         </Text>
                     </View>
                 </View>
@@ -751,10 +674,12 @@ const CryptoPriceChart = (props) => {
 
             {renderTimeFrameButtons}
             {renderMarketData}
+            
+            {/* Bottom sheet for crypto selection */}
             <BottomSheet
                 ref={bottomSheetRef}
                 index={-1}
-                snapPoints={initialSnapPoints}
+                snapPoints={snapPoints}
                 onChange={handleSheetChanges}
                 enablePanDownToClose={true}
                 backgroundStyle={styles.bottomSheetBackground}
@@ -767,7 +692,7 @@ const CryptoPriceChart = (props) => {
                 <BottomSheetFlatList
                     data={cryptocurrencies}
                     keyExtractor={(item) => item.id}
-                    renderItem={renderCryptoList}
+                    renderItem={renderCryptoItem}
                     contentContainerStyle={styles.bottomSheetContent}
                     showsVerticalScrollIndicator={false}
                     initialNumToRender={4}
@@ -780,7 +705,4 @@ const CryptoPriceChart = (props) => {
     );
 };
 
-// Optimized styles with exact dimensions
-
-// Export memoized component
 export default memo(CryptoPriceChart);
