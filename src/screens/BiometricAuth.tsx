@@ -1,6 +1,6 @@
 // src/components/BiometricAuth.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, SafeAreaView, Platform } from 'react-native';
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
 import { useDispatch, useSelector } from 'react-redux';
 import { setAuthenticated, setBiometricsEnabled } from '../store/slices/authSlice';
@@ -11,7 +11,8 @@ import ResponsiveText from '../components/common/ResponsiveText';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const rnBiometrics = new ReactNativeBiometrics();
+// Create the biometrics instance outside of the component to prevent recreation
+const rnBiometrics = new ReactNativeBiometrics({ allowDeviceCredentials: true });
 
 interface BiometricAuthProps {
   onSuccess?: () => void;
@@ -23,12 +24,24 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
   const navigation = useNavigation();
   const [biometryType, setBiometryType] = useState<string | undefined>(undefined);
   const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const biometricsEnabled = useSelector((state) => state.auth.biometricsEnabled);
 
   useEffect(() => {
-    loadBiometricsState();
-    checkBiometricsAvailability();
+    const initialize = async () => {
+      setIsLoading(true);
+      try {
+        await loadBiometricsState();
+        await checkBiometricsAvailability();
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    initialize();
   }, []);
 
   // Load biometrics state from AsyncStorage
@@ -58,7 +71,8 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
     if (onSuccess) {
       onSuccess();
     } else {
-      navigation.replace('Home');
+      // Using navigate instead of replace to prevent potential navigation issues
+      navigation.navigate('Home');
     }
   };
 
@@ -70,10 +84,9 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
         setBiometryType(biometryType);
         setIsBiometricsEnabled(biometricsEnabled);
         
-        // If biometrics are already enabled, prompt for verification immediately
-        if (biometricsEnabled) {
-          handleAuthentication();
-        }
+        // Don't automatically prompt for verification on component mount
+        // This can cause iOS Face ID to trigger too early before UI is ready
+        // Let the user initiate authentication with the button instead
       } else {
         dispatch(setBiometricsEnabled(false));
         Alert.alert(
@@ -90,46 +103,84 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
 
   const handleAuthentication = async () => {
     try {
-      const promptMessage = isBiometricsEnabled ? 
-        'Verify to access Crypto Tracker' : 
-        'Authenticate to set up biometric access';
+      // Adjust prompt message for iOS Face ID vs Touch ID
+      let promptMessage = 'Authenticate to access Crypto Tracker';
+      
+      if (Platform.OS === 'ios') {
+        if (biometryType === BiometryTypes.FaceID) {
+          promptMessage = isBiometricsEnabled ? 
+            'Use Face ID to access Crypto Tracker' : 
+            'Set up Face ID for quick access';
+        } else if (biometryType === BiometryTypes.TouchID) {
+          promptMessage = isBiometricsEnabled ? 
+            'Use Touch ID to access Crypto Tracker' : 
+            'Set up Touch ID for quick access';
+        }
+      }
         
-      const { success } = await rnBiometrics.simplePrompt({
+      const result = await rnBiometrics.simplePrompt({
         promptMessage,
         cancelButtonText: 'Cancel',
+        // Add a timeout to prevent Face ID infinite wait bug on iOS
+        fallbackPromptMessage: 'Please use your device passcode',
       });
-
-      if (success) {
+      
+      if (result && result.success) {
         // If not already enabled, this is the setup process
         if (!isBiometricsEnabled) {
           dispatch(setBiometricsEnabled(true));
-          saveBiometricsState(true);
+          await saveBiometricsState(true);
         }
         
         dispatch(setAuthenticated(true));
         // Save authentication state
-        AsyncStorage.setItem('isAuthenticated', 'true');
+        await AsyncStorage.setItem('isAuthenticated', 'true');
         handleAuthSuccess();
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      
+      // Handle specific iOS error cases
+      if (Platform.OS === 'ios') {
+        if (error.message && error.message.includes('cancelled')) {
+          // User cancelled - no need for an alert
+          return;
+        }
+        
+        Alert.alert(
+          'Authentication Failed',
+          'Please try again or use an alternative login method.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
   const skipAuthentication = async () => {
     dispatch(setAuthenticated(true));
     await AsyncStorage.setItem('isAuthenticated', 'true');
-    // We still save that the user chose not to use biometrics
     await AsyncStorage.setItem('biometricsEnabled', 'false');
     handleAuthSuccess();
   };
 
-  // Determine screen text based on whether biometrics are already enabled
-  const titleText = isBiometricsEnabled ? 
-    'Verify Identity' : 
-    'Use Biometric\nto log in?';
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <ResponsiveText size={'h10'}>Loading...</ResponsiveText>
+      </SafeAreaView>
+    );
+  }
+
+  // Determine screen text based on biometrics type and status
+  let titleText = 'Use Biometric\nto log in?';
+  if (biometryType === BiometryTypes.FaceID) {
+    titleText = isBiometricsEnabled ? 'Verify with Face ID' : 'Use Face ID\nto log in?';
+  } else if (biometryType === BiometryTypes.TouchID) {
+    titleText = isBiometricsEnabled ? 'Verify with Touch ID' : 'Use Touch ID\nto log in?';
+  }
     
-  // Determine button text based on whether biometrics are already enabled
+  // Determine button text
   const buttonText = isBiometricsEnabled ? 'Verify' : 'Set Up';
 
   return (
@@ -139,7 +190,12 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
       </ResponsiveText>
 
       <View>
-        <Image style={{ width: 286, height: 286, alignSelf: 'center' }} source={iconPath?.FaceLock} />
+        <Image 
+          style={{ width: 286, height: 286, alignSelf: 'center' }} 
+          source={iconPath?.FaceLock} 
+          // Add resize mode to prevent image loading issues
+          resizeMode="contain"
+        />
       </View>
 
       <View>
@@ -150,14 +206,14 @@ const BiometricAuth: React.FC<BiometricAuthProps> = ({ onSuccess }) => {
           <Text style={styles.buttonText}>{buttonText}</Text>
         </TouchableOpacity>
 
-        {/* {!isBiometricsEnabled && (
+        {!isBiometricsEnabled && (
           <TouchableOpacity
             style={[styles.skipButton]}
             onPress={skipAuthentication}
           >
             <Text style={[styles.skipButtonText, { color: theme.textSecondary }]}>Skip for now</Text>
           </TouchableOpacity>
-        )} */}
+        )}
       </View>
     </SafeAreaView>
   );
