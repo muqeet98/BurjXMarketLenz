@@ -1,100 +1,72 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# **BurjX MarketLenz Assessment**
 
-# Getting Started
+This repository contains the completed assessment for **BurjX**, developed using **React Native** compatibility with both **Android** and **iOS**. The app is built to provide a seamless user experience for viewing market data, with responsive design, real-time updates, and smooth performance on both Android and iOS platforms.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
-## Step 1: Start Metro
+## **Features Implemented**
+The application includes the following key features:
+- **Fully responsive UI** based on the Figma design.
+- **Smooth navigation** between screens using React Navigation.
+- **State management** with **Redux Toolkit** for managing app state efficiently.
+- **Pixel-perfect design** matching, ensuring the UI is an exact replica of the Figma design.
+- **Cross-platform compatibility** for Android and iOS, ensuring a consistent experience on both platforms.
+- **Biometric Authentication** (Fingerprint or Face ID) for secure login and user authentication.
+- **Infinite Coin Listings** with smooth scrolling to display a large amount of data without performance issues.
+- **Real-time Data Updates** with automatic data refresh for coin values, ensuring users always have the latest information.
+- **Offline Support** with cached data and offline notifications, enabling the app to function even when the user is not connected to the internet.
+- **Chart Data Processing** using **Web Workers** to offload heavy data processing tasks, improving performance.
+- **Lazy Loading** for large components and images to optimize app performance by loading only when necessary.
+- **60fps Performance Optimization** ensuring smooth UI transitions and animations, maintaining a high frame rate on both platforms.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## **Tech Stack**
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+This project uses the following technologies and libraries:
 
-```sh
-# Using npm
-npm start
+- **React Native**: A framework for building cross-platform mobile applications.
+- **JavaScript**: The primary language used for development.
+- **React Navigation**: A library for handling navigation between screens.
+- **Axios**: For making HTTP requests to APIs.
+- **Redux Toolkit**: For state management in the app.
+- **Biometric Authentication**: Integrated using Biometrics for Fingerprint or Face ID login.
+- **React Native Paper**: A UI component library for consistent design and theming across the app.
+- **Web Workers**: For offloading heavy data processing tasks related to chart data.
+- **React Native Fast Image**: For optimized image loading and caching.
+- **React Native Reanimated**: For optimizing animations to ensure smooth transitions and interactions.
+- **React Native AsyncStorage**: For saving cached data for offline usage.
 
-# OR using Yarn
-yarn start
+
+
+## **Demo Video** 
+
+You can watch the walkthrough video of the application here. https://drive.google.com/file/d/1G6GOGgMZ1-USBm_wohgKZgHOhNgz2sks/view
+
+
+## **Installation and Setup**
+
+Follow these steps to set up the project on your local machine:
+
+1. **Clone the repository**:
+
+```bash
+git clone https://github.com/muqeet98/BurjXMarketLenz.git
+
+cd BurjXMarketLenz
+
+
+npm install
+
+cd ios
+
+pod install
+
+cd ..
+
+npx react-native run-ios or run-android
 ```
 
-## Step 2: Build and run your app
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## **Note:**
+  Make sure you have your Android or IOS Real Device is connected.
+	If you face any issues running the app, feel free to contact me at **khabdulmqeet98@gmail.com**.
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
-
-
-https://www.figma.com/design/5dQ9BwO66TMq9yZjJJa3AR/Abdul-Muqeet?node-id=0-1&p=f&t=HzMHHQVAa55rlPiB-0
+ 
